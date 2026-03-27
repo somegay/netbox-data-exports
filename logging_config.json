@@ -1,0 +1,38 @@
+{
+    "version": 1,
+    "disable_existing_loggers": false,
+    "formatters": {
+        "simple": {
+            "format": "[%(name)s]: %(levelname)s - %(message)s"
+        },
+        "standard": {
+            "format": "%(asctime)s [%(name)s]: %(levelname)s - %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S"
+        }
+    },
+    "handlers": {
+        "stdout": {
+            "class": "logging.StreamHandler",
+            "level": "DEBUG",
+            "formatter": "simple",
+            "stream": "ext://sys.stdout"
+        },
+        "file": {
+            "class": "logging.handlers.TimedRotatingFileHandler",
+            "level": "DEBUG",
+            "formatter": "standard",
+            "filename": "logs/script.log",
+            "when": "midnight",
+            "interval": 7,
+            "backupCount": 30,
+            "encoding": "utf-8"
+        }
+    },
+    "loggers": {
+        "": {
+            "level": "DEBUG",
+            "handlers": ["stdout", "file"],
+            "propagate": "false"
+        }
+    }
+}
