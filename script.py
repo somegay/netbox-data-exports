@@ -1,3 +1,11 @@
+"""
+Export selected NetBox objects to CSV and JSON formats.
+
+This script authenticates against a NetBox instance, fetches 
+objects via the Netbox REST API, and exports the results
+to timestamped CSV and JSON files.
+"""
+
 import requests, pandas, json, os, logging, logging.config
 from dotenv import load_dotenv
 from pathlib import Path
@@ -5,8 +13,21 @@ from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-# Configuration
+# Configuration Helpers
+# --------------------------
 def try_get_env_var(var_name: str, default_value: str = "") -> str:
+    """
+    Retrieve an environment variable or fallback to a default value.
+
+    Raises an error if the variable is required and no default is provided.
+
+    Args:
+        var_name (str): Name of the environment variable.
+        default_value (str): Optional fallback value.
+
+    Returns:
+        str: Environment variable value or default.
+    """
     env_var_value = os.environ.get(var_name)
     if env_var_value is None and not default_value:
         raise EnvironmentError(f"Essential configuration {var_name} is missing")
@@ -16,6 +37,8 @@ load_dotenv()
 
 DEFAULT_LOGGING_CONFIG_PATH = try_get_env_var("LOGGING_CONFIG_PATH", "logging_config.json")
 DEFAULT_LOGS_OUTPUT_PATH = "logs"
+
+# Load and validate required environment configurations
 try:
     NETBOX_URL = try_get_env_var("NETBOX_URL")
     NETBOX_TOKEN = try_get_env_var("NETBOX_TOKEN")
@@ -42,7 +65,8 @@ except Exception as e:
     print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
     exit(1)
 
-# Ensure logs output folder exists
+# Logging setup
+# --------------------------
 base_path = Path(__file__).resolve().parent
 logs_path = base_path / DEFAULT_LOGS_OUTPUT_PATH
 logs_path.mkdir(parents=True, exist_ok=True)
@@ -57,8 +81,21 @@ except Exception as e:
     exit(1)
 
 # Main Procedures
-
+# --------------------------
 def fetch_dataset(headers: dict[str, str], netbox_url: str, endpoints: list[dict]) -> list[dict]:
+    """
+    Fetch datasets for selected NetBox objects.
+
+    Handles pagination and applies retry logic on transient failures.
+
+    Args:
+        headers (dict[str, str]): HTTP request headers.
+        netbox_url (str): Base URL of the NetBox instance.
+        endpoints (list[dict]): NetBox API endpoints to query.
+
+    Returns:
+        list[dict]: List of datasets, each containing a name and raw data.
+    """
     fetch_logger = logging.getLogger("script.fetch")
     fetch_logger.info("fetching data from endpoints..")
     # Auto-Retry
@@ -70,9 +107,11 @@ def fetch_dataset(headers: dict[str, str], netbox_url: str, endpoints: list[dict
     )
     session.mount('https://', HTTPAdapter(max_retries=retries))
     datasets = []
+    # Loop through endpoints to fetch them one by one
     for endpoint in endpoints:
         fetch_logger.info(f'fetching data for netbox object {endpoint.get("name")}')
         base_url = netbox_url + endpoint.get("endpoint", "")
+        # Create temporary list in case response body uses pagination for results
         combined_results = []
         current_url = base_url
         try:
@@ -96,9 +135,20 @@ def fetch_dataset(headers: dict[str, str], netbox_url: str, endpoints: list[dict
     return datasets
 
 def format_dataset(datasets: list[dict]) -> list[dict]:
+    """
+    Convert raw NetBox datasets into pandas DataFrames.
+
+    Args:
+        datasets (list[dict]): Raw datasets.
+
+    Returns:
+        list[dict]: Datasets containing DataFrames instead of raw JSON.
+    """
+
     format_logger = logging.getLogger("script.format")
     format_logger.info("formatting dataset..")
     formatted_datasets = []
+    # Loop through the results received in datasets
     for entry in datasets:
         name = entry.get("name", "")
         raw_data = entry.get("data", [])
@@ -122,7 +172,19 @@ def write_to_file(
         extension: str,
         datetime_now: str,
         write_callback: callable) -> None:
+
+    """
+    Write datasets to files using the provided writer callback.
+
+    Args:
+        datasets (list[dict]): Datasets to write.
+        export_path (Path): Output directory.
+        extension (str): File extension (csv or json).
+        datetime_now (str): Timestamp included in filenames.
+        write_callback (callable): Function that performs the write.
+    """
     write_logger = logging.getLogger("script.write")
+    # loop through objects
     for dataset in datasets:
         name = dataset.get("name", "unknown")
         data = dataset.get("data", [])
@@ -133,6 +195,7 @@ def write_to_file(
         full_path = export_path / filename
         write_logger.info(f'attempting to write to file {filename}')
         try:
+            # execute callback in order to delegate writing to either json or csv writers
             write_callback(data, full_path)
         except Exception as e:
             write_logger.error(f'unexpected error occurred - {e}, continuing to next dataset')
@@ -140,11 +203,21 @@ def write_to_file(
         write_logger.info(f'writing to file {full_path} was successful!')
 
 # Utility Functions
-
+#--------------------------
 def get_datetime() -> str:
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 def get_export_path(export_path_str: str) -> Path:
+
+    """
+    Resolve and create an export directory if needed.
+
+    Args:
+        export_path_str (str): Relative export path.
+
+    Returns:
+        Path: Absolute path to the export directory.
+    """
     base_path = Path(__file__).resolve().parent
     export_path = base_path / export_path_str
     if not export_path.exists():
@@ -152,15 +225,32 @@ def get_export_path(export_path_str: str) -> Path:
     return export_path
 
 def write_to_csv(data: list, full_path: Path) -> None:
+    """
+    Write a pandas DataFrame to a CSV file.
+
+    Args:
+        data (pandas.DataFrame): Dataset to export.
+        full_path (Path): Destination file path.
+    """
     data.to_csv(full_path, index=False)
 
 def write_to_json(data: list, full_path: Path) -> None:
+    """
+    Write a dataset to a JSON file.
+
+    Args:
+        data (list[dict]): Dataset to export.
+        full_path (Path): Destination file path.
+    """
     with open(full_path, "w") as json_file:
         json.dump(data, json_file, indent=4, default=str)
 
 # Entry
-
+#--------------------------
 def main() -> None:
+    """
+    Entry point of script.
+    """
     script_logger = logging.getLogger("script")
     script_logger.info("starting script operations..")
     datetime_now = get_datetime()
