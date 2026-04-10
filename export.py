@@ -33,52 +33,61 @@ def try_get_env_var(var_name: str, default_value: str = "") -> str:
         raise EnvironmentError(f"Essential configuration {var_name} is missing")
     return env_var_value if env_var_value else default_value
 
-load_dotenv()
-
-DEFAULT_LOGGING_CONFIG_PATH = try_get_env_var("LOGGING_CONFIG_PATH", "logging_config.json")
-DEFAULT_LOGS_OUTPUT_PATH = "logs"
-
-# Load and validate required environment configurations
-try:
-    NETBOX_URL = try_get_env_var("NETBOX_URL")
-    NETBOX_TOKEN = try_get_env_var("NETBOX_TOKEN")
-    NETBOX_ENDPOINTS = [
-        {
-            "name": "devices",
-            "endpoint": "api/dcim/devices/"
-        },
-        {
-            "name": "ip_addresses",
-            "endpoint": "api/ipam/ip-addresses/"
+def load_config() -> dict:
+    """
+    Loads configuration values for the environmental variables and logging.
+    """
+    load_dotenv()
+    try:
+        config_values = {
+            "LOGGING_CONFIG": try_get_env_var("LOGGING_CONFIG_PATH", "logging_config.json"),
+            "NETBOX_URL": try_get_env_var("NETBOX_URL"),
+            "NETBOX_TOKEN": try_get_env_var("NETBOX_TOKEN"),
+            "NETBOX_ENDPOINTS": [
+                {
+                    "name": "devices",
+                    "endpoint": "api/dcim/devices/"
+                },
+                {
+                    "name": "ip_addresses",
+                    "endpoint": "api/ipam/ip-addresses/"
+                }
+            ],
+            "CSV_EXPORT_PATH": try_get_env_var("CSV_EXPORT_PATH", "exports/csv"),
+            "JSON_EXPORT_PATH": try_get_env_var("JSON_EXPORT_PATH", "exports/json")
         }
-    ]
-    HEADERS = {
-        "Authorization": NETBOX_TOKEN,
-        "Content-Type": "application/json"
-    }
-    CSV_EXPORT_PATH = try_get_env_var("CSV_EXPORT_PATH", "exports/csv")
-    JSON_EXPORT_PATH = try_get_env_var("JSON_EXPORT_PATH", "exports/json")
-except EnvironmentError:
-    print(f"[INITIAL_CONFIG]: FATAL ERROR! - non-optional environmental variable is missing! Please check the documentation")
-    exit(1)
-except Exception as e:
-    print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
-    exit(1)
+        config_values["HEADERS"] = {
+                "Authorization": config_values.get("NETBOX_TOKEN"),
+                "Content-Type": "application/json"
+        }
+        return config_values
+    except EnvironmentError:
+        print(f"[INITIAL_CONFIG]: FATAL ERROR! - non-optional environmental variable is missing! Please check the documentation")
+        exit(1)
+    except Exception as e:
+        print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
+        exit(1)
 
-# Logging setup
-# --------------------------
-base_path = Path(__file__).resolve().parent
-logs_path = base_path / DEFAULT_LOGS_OUTPUT_PATH
-logs_path.mkdir(parents=True, exist_ok=True)
+def setup_logging(logging_config_path: str) -> None:
+    """
+    Sets up the configuration of the logging handlers, formatters, and output path.
 
-# Load logging config
-try:
-    with open(DEFAULT_LOGGING_CONFIG_PATH, "r") as config_file:
-        config_dict = json.loads(config_file.read())
-        logging.config.dictConfig(config_dict)
-except Exception as e:
-    print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
-    exit(1)
+    Args:
+        logging_config_path(str): location of the logging configuration file in JSON format.
+    """
+    default_logs_output_path = "logs"
+    base_path = Path(__file__).resolve().parent
+    logs_path = base_path / default_logs_output_path
+    logs_path.mkdir(parents=True, exist_ok=True)
+
+    # Load logging config
+    try:
+        with open(logging_config_path, "r") as config_file:
+            config_dict = json.loads(config_file.read())
+            logging.config.dictConfig(config_dict)
+    except Exception as e:
+        print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
+        exit(1)
 
 # Main Procedures
 # --------------------------
@@ -251,22 +260,24 @@ def main() -> None:
     """
     Entry point of script.
     """
-    script_logger = logging.getLogger("script")
-    script_logger.info("starting script operations..")
+    config = load_config()
+    setup_logging(config.get("LOGGING_CONFIG"))
+    main_logger = logging.getLogger("export")
+    main_logger.info("starting export operations..")
     datetime_now = get_datetime()
-    csv_export_path = get_export_path(Path(CSV_EXPORT_PATH))
-    json_export_path = get_export_path(Path(JSON_EXPORT_PATH))
+    csv_export_path = get_export_path(Path(config.get("CSV_EXPORT_PATH")))
+    json_export_path = get_export_path(Path(config.get("JSON_EXPORT_PATH")))
     try:
-        datasets = fetch_dataset(HEADERS, NETBOX_URL, NETBOX_ENDPOINTS)
+        datasets = fetch_dataset(config.get("HEADERS"), config.get("NETBOX_URL"), config.get("NETBOX_ENDPOINTS"))
         if not datasets:
             return # handle if datasets is empty
         formatted_datasets = format_dataset(datasets)
         write_to_file(formatted_datasets, csv_export_path, "csv", datetime_now, write_to_csv)
         write_to_file(datasets, json_export_path, "json", datetime_now, write_to_json)
     except Exception as e:
-        script_logger.critical(f'an unexpected error has occurred! exiting early..\n{e}')
+        main_logger.critical(f'an unexpected error has occurred! exiting early..\n{e}')
         exit(1)
-    script_logger.info("script run successful!")
+    main_logger.info("export run successful!")
 
 if __name__ == "__main__":
     main()
