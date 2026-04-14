@@ -1,67 +1,40 @@
 import tkinter as tk
 from tkinter import ttk
 
-# Window
-TITLE = "Snapshot Viewer"
-WINDOW_GEOMETRY = "1280x720"
-# Type
-FONT_FAMILY = "Segoe UI"
-FONT_SIZE_HEADER = 14
-FONT_STYLE_HEADER = "bold"
 # Temps
 SAMPLE_COLUMNS = ["col1", "col2", "col3", "col4", "col5"]
 
 class GuiController(tk.Tk):
     def __init__(self, 
-                 handle_list_refresh, 
-                 handle_list_search, 
-                 handle_data_search,
-                 handle_snapshot_select):
+                 state_manager,
+                 config):
         super().__init__()
+        self.state_manager = state_manager
+        self.config = config
 
-        self.title(TITLE)
-        self.geometry(WINDOW_GEOMETRY)
+        self.title(self.config.title)
+        self.geometry(self.config.geometry)
 
         # SETUP LAYOUT AND WIDGETS
-        self.header = Header(self)
+        self.header = Header(self, self.config)
         self.content = MainContent(self)
-        self.sidebar = Sidebar(self.content, "Snapshots", 
-                               handle_list_refresh, 
-                               handle_list_search, 
-                               handle_snapshot_select)
-        self.main_area = MainArea(self.content, "Records", SAMPLE_COLUMNS, handle_data_search)
+        self.sidebar = Sidebar(self.content, "Snapshots", self.state_manager)
+        self.main_area = MainArea(self.content, "Records", SAMPLE_COLUMNS, self.state_manager)
         self.status_bar = ttk.Label(self, text="Status Bar", anchor="w")
         self.status_bar.pack(fill="x", padx=10, pady=(0, 5))
-    
-    def fetch_snapshot_list_query(self):
-        pass
-
-    def fetch_snapshot_data_query(self):
-        pass
-
-    def fetch_selected_snapshot(self):
-        pass
-
-    def update_status(self):
-        pass
-
-    def update_snapshot_list(self):
-        pass
-
-    def update_snapshot_data(self):
-        pass
 
 # WIDGETS
 # -----------------------------
 
 class Header(tk.Frame):
-    def __init__(self, parent):
+    def __init__(self, parent, config):
+        self.config = config
         super().__init__(parent)
         self.pack(fill="x", padx=10, pady=(10, 5))
         self.title = ttk.Label(
             self,
             text="Snapshot Viewer",
-            font=(FONT_FAMILY, FONT_SIZE_HEADER, FONT_STYLE_HEADER)
+            font=(self.config.font_family, self.config.header_font_size, self.config.header_font_style)
         )
         self.title.pack(side="left")
 
@@ -74,8 +47,9 @@ class MainContent(tk.Frame):
         self.grid_rowconfigure(0, weight=1)
 
 class Sidebar(ttk.LabelFrame):
-    def __init__(self, parent, text, refresh_method, search_method, snapshot_select_method):
+    def __init__(self, parent, text, state_manager):
         super().__init__(parent, text=text)
+        self.state_manager = state_manager
         self.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
         # Header
         self.header = tk.Frame(self)
@@ -94,27 +68,40 @@ class Sidebar(ttk.LabelFrame):
         )
         self.combobox.pack(side="top", pady=10, fill="x", expand=True)
         self.combobox.current(0)
-        ttk.Button(header_actions, text="Refresh", command=refresh_method).pack(ipadx=2, side="left", padx= (0, 5))
-        ttk.Button(header_actions, text="Search", command=search_method).pack(ipadx=5, fill="x", expand=True)  
+        ttk.Button(header_actions, text="Refresh", command=self.handle_refresh).pack(ipadx=2, side="left", padx= (0, 5))
+        ttk.Button(header_actions, text="Search", command=self.handle_search).pack(ipadx=5, fill="x", expand=True)  
         self.snapshot_list = tk.Listbox(self, relief="solid")
         self.snapshot_list.pack(fill="both", expand=True, padx=10, pady=10)
-        self.snapshot_list.bind("<<ListboxSelect>>", snapshot_select_method)
+        self.snapshot_list.bind("<<ListboxSelect>>", self.handle_select)
         """
         THIS IS A Sample DATA ONLY
         """
         self.snapshot_list.insert(tk.END, "Snapshot 1")
         self.snapshot_list.insert(tk.END, "Snapshot 2")
         self.snapshot_list.insert(tk.END, "Snapshot 3")
+    
+    def handle_refresh(self):
+        print("Refresh Clicked!")
+        self.state_manager.list_refresh()
+
+    def handle_search(self):
+        print("List Search Clicked!")
+        self.state_manager.filter_list()
+
+    def handle_select(self, event):
+        print("=Snapshot Selected!")
+        self.state_manager.get_snapshot_list()
 
 class MainArea(ttk.LabelFrame):
-    def __init__(self, parent, text, columns, search_method):
+    def __init__(self, parent, text, columns, state_manager):
+        self.state_manager = state_manager
         super().__init__(parent, text=text)
         self.grid(row=0, column=1, sticky="nsew")
         self.header = tk.Frame(self)
         self.header.pack(fill="x", padx=10)
         ttk.Label(self.header, text="Search: ").pack(side="left", padx=(0, 5))
         ttk.Entry(self.header).pack(side="left", ipadx=50)
-        ttk.Button(self.header, text="Search", command=search_method).pack(side="left", padx=(10, 0))
+        ttk.Button(self.header, text="Search", command=self.handle_data_search).pack(side="left", padx=(10, 0))
         # table
         table = tk.Frame(self)
         table.pack(fill="both", expand=True, padx=10, pady=10)
@@ -135,3 +122,6 @@ class MainArea(ttk.LabelFrame):
         """
         for i in range(1, 21):
             self.tree.insert("", "end", values=(i, f"Item {i}", "OK"))
+    
+    def handle_data_search(self):
+        self.state_manager.filter_data()

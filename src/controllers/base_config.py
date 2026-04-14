@@ -5,13 +5,17 @@ CSV_PATH_VARNAME = "CSV_EXPORT_PATH"
 CSV_DEF_PATH = "exports/csv"
 
 class BaseConfig:
-    def __init__(self, title, geometry):
+    def __init__(self, 
+                 config):
         load_dotenv()
-        self.title = title
-        self.geometry = geometry
+        self.title = config["title"]
+        self.geometry = config["geometry"]
         self.csv_export_path = self.try_get_env_var(CSV_PATH_VARNAME, CSV_DEF_PATH)
+        self.font_family = config["font_family"]
+        self.header_font_size = config["header_font_size"]
+        self.header_font_style = config["header_font_style"]
     
-    def try_get_env_var(var_name: str, default_value: str = "") -> str:
+    def try_get_env_var(self, var_name: str, default_value: str = "") -> str:
         """
         Retrieve an environment variable or fallback to a default value.
 
