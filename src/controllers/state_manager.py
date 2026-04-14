@@ -1,38 +1,63 @@
 import pandas
-from pathlib import Path
+
+COMBOBOX_VALS = ["IP Address", "Devices"]
+IP_IDENTIFIER = "ip_addresses_export_"
+DEVICE_IDENTIFIER = "devices_export_"
+FILE_FORMAT = ".csv"
 
 class StateManager:
     def __init__(self, export_path):
-        self.snapshot_path = self.set_snapshot_path(export_path)
-        self.snapshot_list = self.refresh_snapshot_list()
-        self.dataset = []
+        self.snapshot_path = export_path
+        self.ip_list = []
+        self.filtered_ip_list = []
+        self.device_list = []
+        self.filtered_device_list = []
+        self.dataset = {
+            "dataset": [],
+            "type": ""
+        }
 
-    def set_snapshot_path(self, exports_path):
-        base_path = Path(__file__).resolve().parent
-        return base_path / exports_path
+    def get_ip_list(self):
+        return self.ip_list
 
-    def get_snapshot_list(self):
-        return self.snapshot_list
+    def get_device_list(self):
+        return self.device_list
 
     def refresh_snapshot_list(self):
-        # FETCH LIST AGAIN
-        pass
-
-    def list_refresh(self):
-        # 1. REFRESH DATA
-        # 2. UPDATE GUI WITH THE NEW LIST
-        print("Refresh list")
-        self.refresh_snapshot_list()
+        snapshot_list = list(self.snapshot_path.glob("*.csv"))
+        self.ip_list = [
+            snapshot.name.replace(IP_IDENTIFIER, "").removesuffix(FILE_FORMAT)
+            for snapshot in snapshot_list 
+            if snapshot.name.startswith(IP_IDENTIFIER)]
+        self.device_list = [
+            snapshot.name.replace(DEVICE_IDENTIFIER, "").removesuffix(FILE_FORMAT) 
+            for snapshot in snapshot_list 
+            if snapshot.name.startswith(DEVICE_IDENTIFIER)]
     
-    def filter_list(self):
-        # 1. REFRESH DATA
-        # 2. FILTER LIST
-        # 3. UPDATE GUI WITH NEW LIST
-        print("Search list")
-        self.refresh_snapshot_list()
+    def filter_list(self, query, mode):
+        query = query.lower().strip()
+        if query == "":
+            if mode == COMBOBOX_VALS[0]:
+                return self.ip_list
+            elif mode == COMBOBOX_VALS[1]:
+                return self.device_list
+        if mode == COMBOBOX_VALS[0]:  
+            return [
+                snap for snap in self.ip_list
+                if query in snap.lower()
+            ]
+        elif mode == COMBOBOX_VALS[1]:
+            return [
+                snap for snap in self.device_list
+                if query in snap.lower()
+            ]
     
-    def load_data(self):
-        print("Load data for selected snapshot")
+    def load_dataset(self, record_name, type):
+        df = pandas.read_csv(self.snapshot_path / record_name)
+        return {
+            "type": type,
+            "dataset": df,
+        }
 
     def filter_data(self):
         # 1. TAKE CURRENT DATASET
