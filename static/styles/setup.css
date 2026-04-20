@@ -1,0 +1,79 @@
+/* Initial Config Setup Page */
+.setup-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(180deg, #f8f6f5 0%, #f1efed 100%);
+}
+
+.setup-card {
+  width: min(620px, 100%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.setup-head {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.setup-head h1 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--red);
+  margin-bottom: 6px;
+}
+
+.setup-head p {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.setup-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.setup-body label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-secondary);
+}
+
+.setup-footer {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .setup-card {
+    border-radius: 10px;
+  }
+
+  .setup-head h1 {
+    font-size: 18px;
+  }
+
+  .setup-footer {
+    justify-content: stretch;
+  }
+
+  .setup-footer .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

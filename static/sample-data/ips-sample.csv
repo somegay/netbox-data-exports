@@ -1,0 +1,7 @@
+id,address,status,assigned_to,vrf,tenant,description
+201,10.10.0.1/24,Active,core-rtr-manila-01,Global,Network Ops,Core router loopback
+202,10.10.0.2/24,Standby,agg-sw-mnl-02,Global,Network Ops,Aggregation management address
+203,10.20.0.1/24,Reserved,fw-cebu-01,Edge,Security,Firewall inside interface
+204,10.30.0.5/24,Active,dist-sw-dvo-01,Branch,Branch IT,Distribution switch uplink
+205,192.168.17.10/24,DHCP,ap-bgc-17,Campus,Workplace IT,Wireless AP DHCP assignment
+206,10.10.0.254/24,Reserved,core-rtr-manila-02,Global,Network Ops,Reserved backup router address

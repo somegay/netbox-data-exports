@@ -1,0 +1,7 @@
+id,name,type,status,site,manufacturer,model,ip_address,description
+101,core-rtr-manila-01,Router,Active,Manila DC,Cisco,ASR 1001-X,10.10.0.1/24,Primary core router in Manila
+102,agg-sw-mnl-02,Switch,Standby,Manila DC,Arista,7050SX3-48C8,10.10.0.2/24,Aggregation switch for rack B
+103,fw-cebu-01,Firewall,Maintenance,Cebu Edge,Palo Alto,PA-3220,10.20.0.1/24,Edge firewall under maintenance
+104,dist-sw-dvo-01,Switch,Active,Davao Branch,Juniper,EX4300-48P,10.30.0.5/24,Distribution switch for branch office
+105,ap-bgc-17,Wireless AP,Active,BGC Office,Ubiquiti,U6-Pro,192.168.17.10/24,Floor 17 access point
+106,core-rtr-manila-02,Router,Reserved,Manila DC,Cisco,ASR 1002-HX,10.10.0.254/24,Reserved backup core router

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netbox Manager</title>
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/mobile.css" />
+</head>
+<body>
+  
+<div class="app-shell">
+
+  <!-- Sidebar Imnida -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-logo">Netbox Manager</span>
+      <button class="sidebar-settings-btn" title="Settings" id="settingsBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+
+    <div class="sidebar-live-section">
+      <div class="live-card" id="liveCard">
+        <div class="live-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+        </div>
+        <div class="live-card-text">
+          <div class="live-title">Live Objects <span class="star-icon">★</span></div>
+          <div class="live-sub">Real-time Netbox data</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-snapshots">
+      <div class="snapshots-header">
+        <span class="snapshots-title">Snapshots</span>
+        <span class="snapshots-count" id="snapshotCount">0</span>
+      </div>
+      <div class="snapshots-search">
+        <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search snapshots..." id="snapshotSearch" />
+      </div>
+      <div id="snapshotList"></div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+
+    <!-- Content Header -->
+    <div class="content-header">
+      <button class="mobile-snapshot-toggle" id="mobileSnapshotToggle" title="Open snapshots">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <div class="header-left">
+        <div class="header-title" id="headerTitle">Live Objects</div>
+        <div class="header-subtitle" id="headerSubtitle"><span class="pulse-dot"></span>&nbsp; Real-time Netbox data</div>
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-secondary btn-desktop-only btn-import" id="importBtn" title="Import JSON or CSV">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Import
+          <input type="file" id="importFileDesktop" accept=".json,.csv" />
+        </button>
+        <button class="btn btn-primary btn-desktop-only" id="exportBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Mobile Snapshot Drawer -->
+    <div class="mobile-snapshot-backdrop" id="mobileSnapshotBackdrop"></div>
+    <aside class="mobile-snapshot-drawer" id="mobileSnapshotDrawer">
+      <div class="mobile-drawer-header">
+        <span class="sidebar-logo">Netbox Manager</span>
+        <div class="mobile-drawer-actions">
+          <button class="sidebar-settings-btn" title="Settings" id="mobileSettingsBtn">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+          <button class="mobile-snapshot-close" id="mobileSnapshotClose" title="Close snapshots">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="mobile-live-section">
+        <div class="live-card" id="mobileLiveCard">
+          <div class="live-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="2"/><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/></svg>
+          </div>
+          <div class="live-card-text">
+            <div class="live-title">Live Objects <span class="star-icon">★</span></div>
+            <div class="live-sub">Real-time Netbox data</div>
+          </div>
+        </div>
+      </div>
+      <div class="mobile-snapshot-panel">
+        <div class="snapshots-header">
+          <span class="snapshots-title">Snapshots</span>
+          <span class="snapshots-count" id="mobileSnapshotCount">0</span>
+        </div>
+        <div class="mobile-snapshots-search">
+          <svg class="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search snapshots..." id="mobileSnapshotSearch" />
+        </div>
+        <div class="mobile-snapshot-list" id="mobileSnapshotList"></div>
+      </div>
+    </aside>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="devices">
+        Devices <span class="tab-count" id="devicesCount">0</span>
+      </button>
+      <button class="tab-btn" data-tab="ips">
+        IP Addresses <span class="tab-count" id="ipsCount">0</span>
+      </button>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="filter-bar">
+      <div class="filter-search">
+        <svg class="si" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" placeholder="Search by name, description, or site..." id="tableSearch" />
+      </div>
+      <select class="filter-select" id="statusFilter">
+        <option value="">All Statuses</option>
+        <option value="Active">Active</option>
+        <option value="Standby">Standby</option>
+      </select>
+      <span class="filter-result" id="filterResult">Showing 0 of 0</span>
+    </div>
+
+    <!-- Desktop Table Panel -->
+    <div class="table-panel" id="tablePanel">
+      <div class="loading-overlay" id="loadingState">
+        <div class="spinner"></div>
+        <span>Loading data…</span>
+      </div>
+      <div class="data-table-wrap" id="tableWrap" style="display:none">
+        <table class="data-table" id="dataTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="emptyState" style="display:none">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <p>No records match your filters.</p>
+      </div>
+    </div>
+
+    <!-- Mobile Card View -->
+    <div class="mobile-view" id="mobileView"></div>
+
+    <!-- Mobile Bottom Nav -->
+    <nav class="mobile-nav">
+      <button class="mobile-nav-btn active" data-tab="devices">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        Devices
+      </button>
+      <button class="mobile-nav-btn" data-tab="ips">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+        IPs
+      </button>
+      <button class="mobile-nav-btn" id="mobileExportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Export
+      </button>
+      <button class="mobile-nav-btn btn-import" id="mobileImportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Import
+        <input type="file" id="importFileMobile" accept=".json,.csv" />
+      </button>
+    </nav>
+
+  </main>
+</div>
+
+<!-- Export Modal -->
+<div class="modal-backdrop" id="exportModal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Export Dataset</span>
+      <button class="modal-close" id="closeExportModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p>Choose the format and dataset to export. The file will download to your device.</p>
+      <label for="exportFileName">Snapshot Label (Optional)</label>
+      <input type="text" id="exportFileName" class="settings-input" placeholder="e.g., Production Backup April 2026" style="margin-bottom:16px" />
+      <label>Datasets</label>
+      <div class="modal-radio-group" style="margin-bottom:16px">
+        <input type="checkbox" name="exportDataset" id="exportDevices" value="devices" checked />
+        <label for="exportDevices">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/></svg>
+          Devices
+        </label>
+        <input type="checkbox" name="exportDataset" id="exportIPs" value="ips" />
+        <label for="exportIPs">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/></svg>
+          IP Addresses
+        </label>
+      </div>
+      <label>Formats</label>
+      <div class="modal-radio-group">
+        <input type="checkbox" name="exportFormat" id="exportJSON" value="json" checked />
+        <label for="exportJSON">JSON</label>
+        <input type="checkbox" name="exportFormat" id="exportCSV" value="csv" />
+        <label for="exportCSV">CSV</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" id="cancelExportBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmExportBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal-backdrop" id="settingsModal" style="display:none">
+  <div class="modal settings-modal">
+    <div class="modal-header">
+      <span class="modal-title">Access Configuration</span>
+      <button class="modal-close" id="closeSettingsModal">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body settings-body">
+      <p>Configure your Netbox API access details. This information is stored locally in your browser.</p>
+
+      <label for="configLabel">Configuration Label (Optional)</label>
+      <input type="text" id="configLabel" class="settings-input" placeholder="Demo Netbox Instance" />
+
+      <label for="configNetboxUrl">Netbox URL *</label>
+      <input type="url" id="configNetboxUrl" class="settings-input" placeholder="https://demo.netbox.dev" />
+
+      <label for="configApiToken">API Token *</label>
+      <input type="password" id="configApiToken" class="settings-input" placeholder="Enter your API token" />
+
+      <div class="settings-hint">Your API token is stored locally and never sent to external servers (except Netbox).</div>
+
+      <div id="settingsStatus" class="settings-status" style="display:none"></div>
+    </div>
+    <div class="modal-footer settings-footer">
+      <button class="btn btn-secondary settings-action-btn" id="testConnectionBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="9 12 11 14 15 10"/></svg>
+        Test Connection
+      </button>
+      <button class="btn btn-danger settings-action-btn" id="clearConfigBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        Clear
+      </button>
+      <button class="btn btn-primary settings-action-btn" id="saveConfigBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save Configuration
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="js/state.js"></script>
+<script src="js/data.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/actions.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

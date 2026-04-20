@@ -1,0 +1,56 @@
+[
+  {
+    "id": 201,
+    "address": "10.10.0.1/24",
+    "status": "Active",
+    "assigned_to": "core-rtr-manila-01",
+    "vrf": "Global",
+    "tenant": "Network Ops",
+    "description": "Core router loopback"
+  },
+  {
+    "id": 202,
+    "address": "10.10.0.2/24",
+    "status": "Standby",
+    "assigned_to": "agg-sw-mnl-02",
+    "vrf": "Global",
+    "tenant": "Network Ops",
+    "description": "Aggregation management address"
+  },
+  {
+    "id": 203,
+    "address": "10.20.0.1/24",
+    "status": "Reserved",
+    "assigned_to": "fw-cebu-01",
+    "vrf": "Edge",
+    "tenant": "Security",
+    "description": "Firewall inside interface"
+  },
+  {
+    "id": 204,
+    "address": "10.30.0.5/24",
+    "status": "Active",
+    "assigned_to": "dist-sw-dvo-01",
+    "vrf": "Branch",
+    "tenant": "Branch IT",
+    "description": "Distribution switch uplink"
+  },
+  {
+    "id": 205,
+    "address": "192.168.17.10/24",
+    "status": "DHCP",
+    "assigned_to": "ap-bgc-17",
+    "vrf": "Campus",
+    "tenant": "Workplace IT",
+    "description": "Wireless AP DHCP assignment"
+  },
+  {
+    "id": 206,
+    "address": "10.10.0.254/24",
+    "status": "Reserved",
+    "assigned_to": "core-rtr-manila-02",
+    "vrf": "Global",
+    "tenant": "Network Ops",
+    "description": "Reserved backup router address"
+  }
+]

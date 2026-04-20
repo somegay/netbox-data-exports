@@ -1,31 +1,31 @@
 import bcrypt
+import re
 
-def set_password(password: str) -> bool:
-    """
-    Hashes and stores the admin password in app_state.json.
-    Returns True on success, False on failure.
-    """
-    if not password or not isinstance(password, str):
-            return False
-    try:
-        # Hash password
-        password_hash = hash_password(password)
-        state = {}
-        if APP_STATE_FILE.exists():
-            with open(APP_STATE_FILE, "r", encoding="utf-8") as f:
-                state = json.load(f)
-        # Update password hash
-        state["password_hash"] = password_hash
-        tmp_file = APP_STATE_FILE.with_suffix(".tmp")
-        with open(tmp_file, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2)
-        tmp_file.replace(APP_STATE_FILE)
-        return True
-    except Exception:
-        print("Error:", e)
+PASSWORD_MIN_LENGTH = 8
+_PASSWORD_UPPERCASE_RE = re.compile(r"[A-Z]")
+_PASSWORD_NUMBER_RE = re.compile(r"\d")
+_PASSWORD_SPECIAL_RE = re.compile(r"[^A-Za-z0-9]")
 
-def hash_password(password: str) -> bytes:
+def hash_password(password: str) -> str:
      return bcrypt.hashpw(
             password.encode("utf-8"),
             bcrypt.gensalt()
         ).decode("utf-8")
+
+def valid_password(password: str) -> bool:
+    if not isinstance(password, str):
+        return False
+
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return False
+
+    if not _PASSWORD_UPPERCASE_RE.search(password):
+        return False
+
+    if not _PASSWORD_NUMBER_RE.search(password):
+        return False
+
+    if not _PASSWORD_SPECIAL_RE.search(password):
+        return False
+
+    return True

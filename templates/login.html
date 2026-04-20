@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netbox Manager Login</title>
+  <link rel="stylesheet" href="styles/base.css" />
+  <link rel="stylesheet" href="styles/auth.css" />
+</head>
+<body class="app-locked" data-auth-mode="login">
+  <div class="access-screen" id="accessScreen">
+    <div class="access-card">
+      <h1 class="access-title">Netbox Manager</h1>
+      <p class="access-subtitle" id="accessSubtitle">Enter your password to access the application</p>
+
+      <form id="accessForm" class="access-form" autocomplete="off">
+        <label for="accessPassword">Password</label>
+        <input type="password" id="accessPassword" placeholder="Enter password" />
+        <button type="submit" id="accessSubmitBtn">Access Application</button>
+        <p class="access-error" id="accessError" style="display:none"></p>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/state.js"></script>
+  <script src="js/auth.js"></script>
+</body>
+</html>

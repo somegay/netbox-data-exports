@@ -1,0 +1,67 @@
+{
+  "name": "QA Snapshot April 2026",
+  "devices": [
+    {
+      "id": 101,
+      "name": "core-rtr-manila-01",
+      "type": "Router",
+      "status": "Active",
+      "site": "Manila DC",
+      "manufacturer": "Cisco",
+      "model": "ASR 1001-X",
+      "ip_address": "10.10.0.1/24",
+      "description": "Primary core router in Manila"
+    },
+    {
+      "id": 102,
+      "name": "agg-sw-mnl-02",
+      "type": "Switch",
+      "status": "Standby",
+      "site": "Manila DC",
+      "manufacturer": "Arista",
+      "model": "7050SX3-48C8",
+      "ip_address": "10.10.0.2/24",
+      "description": "Aggregation switch for rack B"
+    },
+    {
+      "id": 103,
+      "name": "fw-cebu-01",
+      "type": "Firewall",
+      "status": "Maintenance",
+      "site": "Cebu Edge",
+      "manufacturer": "Palo Alto",
+      "model": "PA-3220",
+      "ip_address": "10.20.0.1/24",
+      "description": "Edge firewall under maintenance"
+    }
+  ],
+  "ip_addresses": [
+    {
+      "id": 201,
+      "address": "10.10.0.1/24",
+      "status": "Active",
+      "assigned_to": "core-rtr-manila-01",
+      "vrf": "Global",
+      "tenant": "Network Ops",
+      "description": "Core router loopback"
+    },
+    {
+      "id": 202,
+      "address": "10.10.0.2/24",
+      "status": "Standby",
+      "assigned_to": "agg-sw-mnl-02",
+      "vrf": "Global",
+      "tenant": "Network Ops",
+      "description": "Aggregation management address"
+    },
+    {
+      "id": 203,
+      "address": "10.20.0.1/24",
+      "status": "Reserved",
+      "assigned_to": "fw-cebu-01",
+      "vrf": "Edge",
+      "tenant": "Security",
+      "description": "Firewall inside interface"
+    }
+  ]
+}
