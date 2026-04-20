@@ -1,0 +1,7 @@
+{
+  "DEBUG": false,
+  "SESSION_COOKIE_HTTPONLY": true,
+  "SESSION_COOKIE_SAMESITE": "Lax",
+  "SESSION_COOKIE_SECURE": false,
+  "TEMPLATES_AUTO_RELOAD": false
+}
