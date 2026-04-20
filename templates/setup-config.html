@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Netbox Manager Setup</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/setup.css') }}" />
+</head>
+<body>
+  <main class="setup-page">
+    <section class="setup-card">
+      <div class="setup-head">
+        <h1>Access Configuration</h1>
+        <p>Set up your Netbox API access details before entering the application.</p>
+      </div>
+
+      <div class="setup-body">
+        <label for="configNetboxUrl">Netbox URL *</label>
+        <input type="url" id="configNetboxUrl" class="settings-input" placeholder="https://demo.netbox.dev" />
+
+        <label for="configApiToken">API Token *</label>
+        <input type="password" id="configApiToken" class="settings-input" placeholder="Enter your API token" />
+
+        <div class="settings-hint">Your API token is stored locally and never sent to external servers (except Netbox).</div>
+        <div id="setupStatus" class="settings-status" style="display:none"></div>
+      </div>
+
+      <div class="setup-footer">
+        <button class="btn btn-secondary" id="testConnectionBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="9 12 11 14 15 10"/></svg>
+          Test Connection
+        </button>
+        <button class="btn btn-primary" id="saveConfigBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+          Save Configuration
+        </button>
+      </div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='js/config-setup.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+[
+  {
+    "id": 101,
+    "name": "core-rtr-manila-01",
+    "type": "Router",
+    "status": "Active",
+    "site": "Manila DC",
+    "manufacturer": "Cisco",
+    "model": "ASR 1001-X",
+    "ip_address": "10.10.0.1/24",
+    "description": "Primary core router in Manila"
+  },
+  {
+    "id": 102,
+    "name": "agg-sw-mnl-02",
+    "type": "Switch",
+    "status": "Standby",
+    "site": "Manila DC",
+    "manufacturer": "Arista",
+    "model": "7050SX3-48C8",
+    "ip_address": "10.10.0.2/24",
+    "description": "Aggregation switch for rack B"
+  },
+  {
+    "id": 103,
+    "name": "fw-cebu-01",
+    "type": "Firewall",
+    "status": "Maintenance",
+    "site": "Cebu Edge",
+    "manufacturer": "Palo Alto",
+    "model": "PA-3220",
+    "ip_address": "10.20.0.1/24",
+    "description": "Edge firewall under maintenance"
+  },
+  {
+    "id": 104,
+    "name": "dist-sw-dvo-01",
+    "type": "Switch",
+    "status": "Active",
+    "site": "Davao Branch",
+    "manufacturer": "Juniper",
+    "model": "EX4300-48P",
+    "ip_address": "10.30.0.5/24",
+    "description": "Distribution switch for branch office"
+  },
+  {
+    "id": 105,
+    "name": "ap-bgc-17",
+    "type": "Wireless AP",
+    "status": "Active",
+    "site": "BGC Office",
+    "manufacturer": "Ubiquiti",
+    "model": "U6-Pro",
+    "ip_address": "192.168.17.10/24",
+    "description": "Floor 17 access point"
+  },
+  {
+    "id": 106,
+    "name": "core-rtr-manila-02",
+    "type": "Router",
+    "status": "Reserved",
+    "site": "Manila DC",
+    "manufacturer": "Cisco",
+    "model": "ASR 1002-HX",
+    "ip_address": "10.10.0.254/24",
+    "description": "Reserved backup core router"
+  }
+]
