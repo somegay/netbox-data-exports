@@ -80,10 +80,20 @@ async function setActiveSource(sourceId) {
       showToast(state.liveError, 'error');
     }
   } else {
-    const snap = getSnapshotById(sourceId) || {};
-    document.getElementById('headerTitle').textContent = snap.name || 'Snapshot';
-    const fileType = snap.fileType ? ` &nbsp;·&nbsp; ${snap.fileType}` : '';
-    document.getElementById('headerSubtitle').innerHTML = `${snap.date || ''} &nbsp;·&nbsp; ${snap.count || 0} objects${fileType}`;
+    const snap = getSnapshotById(sourceId);
+    if (!snap) return;
+
+    setTableLoading(true, 'Loading snapshot data...');
+    await loadSnapshotData(sourceId);
+
+    const total =
+      (snap.count?.devices || 0) + (snap.count?.ips || 0);
+
+    const [date, time] = snap.id.split('_');
+    const timeFormatted = time.split('-').slice(0, 3).join(':');
+
+    document.getElementById('headerTitle').textContent = date;
+    document.getElementById('headerSubtitle').textContent = timeFormatted;
   }
 
   closeMobileDrawer();
@@ -179,9 +189,8 @@ function deleteSnapshot(snapshotId) {
 
 function readSettingsForm() {
   return {
-    label: document.getElementById('configLabel').value.trim(),
-    url: document.getElementById('configNetboxUrl').value.trim().replace(/\/+$/, ''),
-    token: document.getElementById('configApiToken').value.trim(),
+    netbox_url: document.getElementById('configNetboxUrl').value.trim().replace(/\/+$/, ''),
+    netbox_token: document.getElementById('configApiToken').value.trim(),
   };
 }
 
@@ -219,12 +228,13 @@ async function testNetboxConnection() {
   setSettingsStatus('Testing connection...', 'info');
 
   try {
-    const response = await fetch(`${cfg.url}/api/`, {
-      method: 'GET',
+    const response = await fetch(`${cfg.url}/api/test-netbox`, {
+      method: 'POST',
       headers: {
-        Authorization: `Token ${cfg.token}`,
-        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Token ${cfg.token}`
       },
+      body: JSON.stringify(cfg)
     });
 
     if (response.ok) {

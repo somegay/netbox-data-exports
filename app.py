@@ -78,10 +78,6 @@ def init_config_setup():
         )
     return render_template("setup-config.html", title="Setup configuration")
 
-@app.route(HOME)
-def home():
-    return "<p>Hello, World!</p>"
-
 @app.route(LOGIN, methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
@@ -101,7 +97,12 @@ def login():
 
     return render_template("login.html", title="Login")
 
+@app.route(HOME)
+def home():
+    return render_template("index.html", title="dashboard")
+
 # API
+# ---------------------------
 
 @app.route("/api/test-netbox", methods=["POST"])
 def test_netbox():
@@ -128,6 +129,116 @@ def test_netbox():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+from flask import jsonify
+import requests
+
+@app.route("/api/live/devices")
+def api_live_devices():
+    r = requests.get(
+        f"{app_state.netbox_url}/api/dcim/devices/?limit=1000",
+        headers={
+            "Authorization": f"Token {app_state.netbox_token}",
+            "Accept": "application/json",
+        },
+        timeout=10,
+    )
+    r.raise_for_status()
+
+    raw = r.json().get("results", [])
+    devices = []
+
+    for d in raw:
+        devices.append({
+            "name": d.get("name", "Unnamed device"),
+            "type": (
+                (d.get("role") or {}).get("name")
+                or (d.get("device_type") or {}).get("model")
+                or "Device"
+            ),
+            "status": (
+                (d.get("status") or {}).get("label")
+                or (d.get("status") or {}).get("value")
+                or "Unknown"
+            ),
+            "site": ((d.get("site") or {}).get("name") or "—"),
+            "manufacturer": (
+                ((d.get("device_type") or {})
+                 .get("manufacturer") or {})
+                .get("name", "—")
+            ),
+            "model": (d.get("device_type") or {}).get("model", "—"),
+            "ip_address": (
+                (d.get("primary_ip4") or {}).get("address")
+                or (d.get("primary_ip") or {}).get("address")
+                or "—"
+            ),
+            "description": d.get("description") or "",
+        })
+
+    return jsonify(devices)
+
+
+@app.route("/api/live/ips")
+def api_live_ips():
+    r = requests.get(
+        f"{app_state.netbox_url}/api/ipam/ip-addresses/?limit=1000",
+        headers={
+            "Authorization": f"Token {app_state.netbox_token}",
+            "Accept": "application/json",
+        },
+        timeout=10,
+    )
+    r.raise_for_status()
+
+    raw = r.json().get("results", [])
+    ips = []
+
+    for ip in raw:
+        ips.append({
+            "address": ip.get("address", "—"),
+            "status": (
+                (ip.get("status") or {}).get("label")
+                or (ip.get("status") or {}).get("value")
+                or "Unknown"
+            ),
+            "assigned_to": (
+                (ip.get("assigned_object") or {}).get("name")
+                or (ip.get("assigned_object") or {}).get("display")
+                or "Unassigned"
+            ),
+            "vrf": ((ip.get("vrf") or {}).get("name") or "Global"),
+            "tenant": ((ip.get("tenant") or {}).get("name") or "—"),
+            "description": ip.get("description") or "",
+        })
+
+    return jsonify(ips)
+
+@app.route("/api/snapshots")
+def api_list_snapshots():
+    base = Path(app_config.get("snapshot_loc_path")) / "csv"
+    return jsonify(list_snapshots(base))
+
+@app.route("/api/snapshots/<snapshot_id>")
+def api_load_snapshot(snapshot_id):
+    base = Path(app_config.get("snapshot_loc_path")) / "csv"
+
+    devices_path = base / f"devices_export_{snapshot_id}.csv"
+    ips_path = base / f"ip_addresses_export_{snapshot_id}.csv"
+
+    data = {}
+
+    if devices_path.exists():
+        data["devices"] = load_devices_csv(devices_path)
+    else:
+        data["devices"] = []
+
+    if ips_path.exists():
+        data["ip_addresses"] = load_ips_csv(ips_path)
+    else:
+        data["ip_addresses"] = []
+
+    return jsonify(data)
 
 if __name__ == "__main__":
     app.run(debug=True)

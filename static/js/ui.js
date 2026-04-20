@@ -1,28 +1,46 @@
 // ── UI Rendering ──────────────────────────────────────────
+function formatSnapshotLabel(snapshot) {
+  if (!snapshot?.id) {
+    return { date: 'Snapshot', time: '' };
+  }
+
+  // id = "2026-04-20_13-44-44"
+  const [date, timeRaw] = snapshot.id.split('_');
+  const time = timeRaw ? timeRaw.replace(/-/g, ':') : '';
+
+  return { date, time };
+}
+
 function renderSidebar() {
   const allSnapshots = getAllSnapshots();
   const qDesktop = document.getElementById('snapshotSearch').value.toLowerCase();
   const qMobile = document.getElementById('mobileSnapshotSearch').value.toLowerCase();
-  const filteredDesktop = allSnapshots.filter(s => s.name.toLowerCase().includes(qDesktop));
-  const filteredMobile = allSnapshots.filter(s => s.name.toLowerCase().includes(qMobile));
+  const filteredDesktop = allSnapshots.filter(s =>
+  String(s.id).toLowerCase().includes(qDesktop)
+  );
+  const filteredMobile = allSnapshots.filter(s =>
+  String(s.id).toLowerCase().includes(qMobile)
+  );
   document.getElementById('snapshotCount').textContent = allSnapshots.length;
   document.getElementById('mobileSnapshotCount').textContent = allSnapshots.length;
 
   const list = document.getElementById('snapshotList');
-  list.innerHTML = filteredDesktop.map(s => `
-    <div class="snapshot-item ${state.activeSource === s.id ? 'active' : ''}" data-id="${s.id}">
-      <button class="snapshot-delete-btn" data-delete-id="${s.id}" title="Delete snapshot">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-      </button>
-      <div class="snapshot-name">${s.name}</div>
-      <div class="snapshot-meta">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        ${s.date}
-        <span style="color:var(--border)">·</span>
-        ${s.count} objects
+  list.innerHTML = filteredDesktop.map(s => {
+    const { date, time } = formatSnapshotLabel(s);
+
+    const totalCount =
+      (s.count?.devices || 0) + (s.count?.ips || 0);
+
+    return `
+      <div class="snapshot-item" data-id="${s.id}">
+        <div class="snapshot-title">${date}</div>
+        <div class="snapshot-meta">
+          ${time ? `<span>${time}</span>` : ''}
+          <span class="snapshot-count">${totalCount} objects</span>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   list.querySelectorAll('.snapshot-item').forEach(el => {
     el.addEventListener('click', () => setActiveSource(el.dataset.id));
@@ -35,20 +53,22 @@ function renderSidebar() {
   });
 
   const mobileList = document.getElementById('mobileSnapshotList');
-  mobileList.innerHTML = filteredMobile.map(s => `
-    <div class="snapshot-item ${state.activeSource === s.id ? 'active' : ''}" data-id="${s.id}">
-      <button class="snapshot-delete-btn" data-delete-id="${s.id}" title="Delete snapshot">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
-      </button>
-      <div class="snapshot-name">${s.name}</div>
-      <div class="snapshot-meta">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-        ${s.date}
-        <span style="color:var(--border)">·</span>
-        ${s.count} objects
+  mobileList.innerHTML = filteredMobile.map(s => {
+    const { date, time } = formatSnapshotLabel(s);
+
+    const totalCount =
+      (s.count?.devices || 0) + (s.count?.ips || 0);
+
+    return `
+      <div class="snapshot-item" data-id="${s.id}">
+        <div class="snapshot-title">${date}</div>
+        <div class="snapshot-meta">
+          ${time ? `<span>${time}</span>` : ''}
+          <span class="snapshot-count">${totalCount}</span>
+        </div>
       </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 
   mobileList.querySelectorAll('.snapshot-item').forEach(el => {
     el.addEventListener('click', () => setActiveSource(el.dataset.id));
