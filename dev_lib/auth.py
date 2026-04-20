@@ -12,6 +12,15 @@ def hash_password(password: str) -> str:
             bcrypt.gensalt()
         ).decode("utf-8")
 
+
+def verify_password(password: str, hashed: str) -> bool:
+    if not password or not hashed:
+        return False
+    return bcrypt.checkpw(
+        password.encode("utf-8"),
+        hashed.encode("utf-8"),
+    )
+
 def valid_password(password: str) -> bool:
     if not isinstance(password, str):
         return False

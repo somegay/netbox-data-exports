@@ -81,9 +81,7 @@ function initAuthPage() {
     if (confirmInput) confirmInput.value = '';
   } else {
     if (subtitle) {
-      subtitle.textContent = storedPassword
-        ? 'Enter your password to access the application'
-        : 'No password has been created yet.';
+      subtitle.textContent = 'Enter your password to access the application';
     }
     if (rules) rules.style.display = 'none';
     if (submit) submit.textContent = 'Access Application';

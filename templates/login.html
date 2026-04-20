@@ -4,8 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Netbox Manager Login</title>
-  <link rel="stylesheet" href="styles/base.css" />
-  <link rel="stylesheet" href="styles/auth.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css') }}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/auth.css') }}" />
 </head>
 <body class="app-locked" data-auth-mode="login">
   <div class="access-screen" id="accessScreen">
@@ -21,8 +21,6 @@
       </form>
     </div>
   </div>
-
-  <script src="js/state.js"></script>
-  <script src="js/auth.js"></script>
+  <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
 </body>
 </html>

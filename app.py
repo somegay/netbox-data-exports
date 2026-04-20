@@ -43,7 +43,7 @@ def guard():
         return redirect(HOME)
     if not app_state.is_initialized and request.path != SETUP:
         return redirect(SETUP)
-    if app_state.is_initialized and not session.get("authenticated"):
+    if app_state.is_initialized and not session.get("authenticated") and request.path != LOGIN:
         return redirect(LOGIN)
 
 @app.route(SETUP, methods=["GET", "POST"])
@@ -82,8 +82,23 @@ def init_config_setup():
 def home():
     return "<p>Hello, World!</p>"
 
-@app.route(LOGIN)
+@app.route(LOGIN, methods=["GET", "POST"])
 def login():
+    if session.get("authenticated"):
+        return redirect(url_for("home"))
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        password = data.get("password")
+
+        if not password:
+            return jsonify(success=False, message="Password required"), 400
+
+        if not verify_password(password, app_state.hashed_password):
+            return jsonify(success=False, message="Invalid password"), 401
+
+        session["authenticated"] = True
+        return jsonify(success=True, next=url_for("home"))
+
     return render_template("login.html", title="Login")
 
 # API
@@ -108,6 +123,11 @@ def test_netbox():
         }), 400
     except requests.RequestException as e:
         return jsonify({"error": str(e)}), 500
+    
+@app.route("/auth/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
 
 if __name__ == "__main__":
     app.run(debug=True)
