@@ -1,20 +1,4 @@
 // ── Data & Persistence ────────────────────────────────────
-async function loadData() {
-  try {
-    const res = await fetch('netbox-data.json');
-    const json = await res.json();
-    state.snapshots = (json.snapshots || []).map(s => ({
-      ...s,
-      sourceType: s.sourceType || 'seed',
-    }));
-  } catch (e) {
-    state.snapshots = [];
-  }
-
-  state.liveDevices = [];
-  state.liveIPs = [];
-  state.liveError = '';
-}
 
 function normalizeStatus(raw) {
   const str = String(raw || '').toLowerCase();
@@ -33,65 +17,24 @@ function getNetboxResults(json) {
 }
 
 async function fetchLiveDataFromConfig() {
-  const cfg = state.netboxConfig || {};
-  if (!cfg.url || !cfg.token) {
-    state.liveDevices = [];
-    state.liveIPs = [];
-    state.liveError = 'Live fetch failed: configure Netbox URL and API token in Settings.';
-    return false;
-  }
-
-  const headers = {
-    Authorization: `Token ${cfg.token}`,
-    Accept: 'application/json',
-  };
-
-  const devicesUrl = `${cfg.url}/api/dcim/devices/?limit=1000`;
-  const ipsUrl = `${cfg.url}/api/ipam/ip-addresses/?limit=1000`;
-
   try {
     const [devicesRes, ipsRes] = await Promise.all([
-      fetch(devicesUrl, { method: 'GET', headers }),
-      fetch(ipsUrl, { method: 'GET', headers }),
+      fetch('/api/live/devices'),
+      fetch('/api/live/ips')
     ]);
 
     if (!devicesRes.ok || !ipsRes.ok) {
-      const code = !devicesRes.ok ? devicesRes.status : ipsRes.status;
-      throw new Error(`HTTP ${code}`);
+      throw new Error('Live fetch failed');
     }
 
-    const [devicesJson, ipsJson] = await Promise.all([devicesRes.json(), ipsRes.json()]);
-    const devicesRaw = getNetboxResults(devicesJson);
-    const ipsRaw = getNetboxResults(ipsJson);
-
-    state.liveDevices = devicesRaw.map((d, i) => ({
-      id: d.id || i + 1,
-      name: d.name || 'Unnamed device',
-      type: d.role?.name || d.device_type?.model || 'Device',
-      status: normalizeStatus(d.status?.label || d.status?.value || d.status),
-      site: d.site?.name || '—',
-      manufacturer: d.device_type?.manufacturer?.name || '—',
-      model: d.device_type?.model || '—',
-      description: d.description || '',
-      ip_address: d.primary_ip4?.address || d.primary_ip?.address || '—',
-    }));
-
-    state.liveIPs = ipsRaw.map((ip, i) => ({
-      id: ip.id || i + 1,
-      address: ip.address || '—',
-      status: normalizeStatus(ip.status?.label || ip.status?.value || ip.status),
-      assigned_to: ip.assigned_object?.name || ip.assigned_object?.display || 'Unassigned',
-      vrf: ip.vrf?.name || 'Global',
-      tenant: ip.tenant?.name || '—',
-      description: ip.description || '',
-    }));
-
+    state.liveDevices = await devicesRes.json();
+    state.liveIPs = await ipsRes.json();
     state.liveError = '';
     return true;
-  } catch (error) {
+  } catch (e) {
     state.liveDevices = [];
     state.liveIPs = [];
-    state.liveError = `Live fetch failed: ${error.message}.`;
+    state.liveError = e.message;
     return false;
   }
 }
@@ -105,17 +48,22 @@ function getCurrentCols() {
 }
 
 function getAllSnapshots() {
-  const exported = state.exportedSnapshots.map(s => ({
-    ...s,
-    id: String(s.id),
-    sourceType: 'exported',
-  }));
-  const savedAndSeedSnapshots = state.snapshots.map(s => ({
-    ...s,
-    id: String(s.id),
-    sourceType: s.sourceType || 'seed',
-  }));
-  return [...exported, ...savedAndSeedSnapshots];
+  return [...state.exportedSnapshots, ...state.snapshots];
+}
+
+async function loadSnapshotData(snapshotId) {
+  const res = await fetch(`/api/snapshots/${snapshotId}`);
+  if (!res.ok) {
+    showToast('Failed to load snapshot.', 'error');
+    return;
+  }
+
+  const data = await res.json();
+  const snap = getSnapshotById(snapshotId);
+  if (!snap) return;
+
+  snap.devices = data.devices || [];
+  snap.ip_addresses = data.ip_addresses || [];
 }
 
 function getSnapshotById(sourceId) {
@@ -139,34 +87,13 @@ function getDataForSourceAndTab(sourceId, tab) {
   return [];
 }
 
-function loadExportedSnapshots() {
-  try {
-    const raw = localStorage.getItem('netboxExportedSnapshots');
-    state.exportedSnapshots = raw ? JSON.parse(raw) : [];
-  } catch {
-    state.exportedSnapshots = [];
-  }
+async function loadSnapshotsFromServer() {
+  const res = await fetch('/api/snapshots');
+  state.snapshots = await res.json();
 }
 
 function saveExportedSnapshots() {
   localStorage.setItem('netboxExportedSnapshots', JSON.stringify(state.exportedSnapshots));
-}
-
-function loadUserSnapshots() {
-  try {
-    const raw = localStorage.getItem('netboxSnapshots');
-    const parsed = raw ? JSON.parse(raw) : [];
-    const userSnapshots = Array.isArray(parsed) ? parsed : [];
-
-    const normalizedUsers = userSnapshots.map(s => ({
-      ...s,
-      sourceType: 'user',
-    }));
-
-    state.snapshots = [...normalizedUsers, ...state.snapshots];
-  } catch {
-    // Keep current in-memory snapshots when local storage is unavailable or invalid.
-  }
 }
 
 function saveUserSnapshots() {

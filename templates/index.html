@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Netbox Manager</title>
-  <link rel="stylesheet" href="styles/base.css" />
-  <link rel="stylesheet" href="styles/mobile.css" />
-  <link rel="stylesheet" href="styles/auth.css" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/base.css')}}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/mobile.css')}}" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles/auth.css')}}" />
 </head>
 <body>
   
@@ -302,11 +302,11 @@
 <!-- Toast Container -->
 <div class="toast-container" id="toastContainer"></div>
 
-<script src="js/state.js"></script>
-<script src="js/data.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/actions.js"></script>
-<script src="js/main.js"></script>
+<script src="{{ url_for('static', filename='js/data.js') }}"></script>
+<script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ui.js') }}"></script>
+<script src="{{ url_for('static', filename='js/actions.js') }}"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+<script src="{{ url_for('static', filename='js/state.js') }}"></script>
 </body>
 </html>

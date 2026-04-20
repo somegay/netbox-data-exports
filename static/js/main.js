@@ -1,9 +1,7 @@
 // ── App Bootstrap (Direct Access) ────────────────────────
 async function bootstrapApp() {
   loadNetboxConfig();
-  await loadData();
-  loadUserSnapshots();
-  loadExportedSnapshots();
+  await loadSnapshotsFromServer();
   bindEvents();
   renderSidebar();
   await setActiveSource('live');

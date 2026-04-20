@@ -11,6 +11,7 @@ FLASK_CONFIG_VALUES = {
 APP_CONFIG_VALUES = {
     "version": str,
     "state_file_path": str,
+    "snapshot_loc_path": str
 }
 
 def initialize_dependency(file_path: str, required_keys: dict[str, str]) -> dict:
