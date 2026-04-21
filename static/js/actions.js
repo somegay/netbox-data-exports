@@ -49,9 +49,7 @@ function bindEvents() {
   document.getElementById('saveConfigBtn').addEventListener('click', saveNetboxConfig);
   document.getElementById('closeChangePasswordModal').addEventListener('click', closeChangePasswordModal);
   document.getElementById('cancelChangePasswordBtn').addEventListener('click', closeChangePasswordModal);
-  document.getElementById('saveChangePasswordBtn').addEventListener('click', () => {
-    document.getElementById('changePasswordForm').requestSubmit();
-  });
+  document.getElementById('saveChangePasswordBtn').addEventListener('click', handleChangePasswordSubmit);
   document.getElementById('changePasswordModal').addEventListener('click', e => {
     if (e.target === document.getElementById('changePasswordModal')) closeChangePasswordModal();
   });
@@ -194,33 +192,72 @@ function readSettingsForm() {
   };
 }
 
-function saveNetboxConfig() {
-  const next = readSettingsForm();
-  if (!next.url || !next.token) {
+async function saveNetboxConfig() {
+  const cfg = readSettingsForm();
+
+  if (!cfg.netbox_url || !cfg.netbox_token) {
     setSettingsStatus('Netbox URL and API token are required.', 'error');
     return;
   }
-  state.netboxConfig = next;
-  localStorage.setItem('netboxConfig', JSON.stringify(next));
-  localStorage.setItem(APP_CONFIG_COMPLETED_KEY, '1');
-  setSettingsStatus('Configuration saved locally.', 'success');
-  showToast('Netbox configuration saved.', 'success');
+
+  setSettingsStatus('Testing connection...', 'info');
+
+  try {
+    // 1. Test first (reuse existing endpoint)
+    const testRes = await fetch('/api/test-netbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+
+    if (!testRes.ok) {
+      setSettingsStatus('Connection test failed. Configuration not saved.', 'error');
+      showToast('Netbox connection failed.', 'error');
+      return;
+    }
+
+    // 2. Save only if test passed
+    setSettingsStatus('Saving configuration...', 'info');
+
+    const saveRes = await fetch('/initialize-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+
+    if (!saveRes.ok) {
+      setSettingsStatus('Failed to save configuration.', 'error');
+      return;
+    }
+
+    setSettingsStatus('Configuration saved successfully.', 'success');
+    showToast('Netbox configuration saved.', 'success');
+
+  } catch (err) {
+    setSettingsStatus('Unable to contact server.', 'error');
+  }
 }
 
-function clearNetboxConfig() {
-  state.netboxConfig = { label: '', url: '', token: '' };
-  localStorage.removeItem('netboxConfig');
-  localStorage.setItem(APP_CONFIG_COMPLETED_KEY, '0');
-  document.getElementById('configLabel').value = '';
+async function clearNetboxConfig() {
   document.getElementById('configNetboxUrl').value = '';
   document.getElementById('configApiToken').value = '';
+
+  try {
+    const response = await fetch('/api/netbox/config', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+  catch (error) {
+
+  }
   setSettingsStatus('Configuration cleared.', 'info');
   showToast('Netbox configuration cleared.', 'info');
 }
 
 async function testNetboxConnection() {
   const cfg = readSettingsForm();
-  if (!cfg.url || !cfg.token) {
+  if (!cfg.netbox_url || !cfg.netbox_token) {
     setSettingsStatus('Enter Netbox URL and API token first.', 'error');
     return;
   }
@@ -228,11 +265,10 @@ async function testNetboxConnection() {
   setSettingsStatus('Testing connection...', 'info');
 
   try {
-    const response = await fetch(`${cfg.url}/api/test-netbox`, {
+    const response = await fetch(`/api/test-netbox`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Token ${cfg.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(cfg)
     });
@@ -256,6 +292,61 @@ async function testNetboxConnection() {
     showToast('Netbox connection failed.', 'error');
   }
 }
+
+// async function handleChangePasswordSubmit(e) {
+//   e.preventDefault();
+
+//   const current = document.getElementById('currentPassword').value;
+//   const newPassword = document.getElementById('newPassword').value;
+//   const confirm = document.getElementById('confirmNewPassword').value;
+
+//   setChangePasswordStatus('');
+
+//   if (!isPasswordValid(newPassword)) {
+//     setChangePasswordStatus(
+//       'New password does not satisfy all requirements.',
+//       'error'
+//     );
+//     return;
+//   }
+
+//   if (newPassword !== confirm) {
+//     setChangePasswordStatus(
+//       'New password and confirmation do not match.',
+//       'error'
+//     );
+//     return;
+//   }
+
+//   setChangePasswordStatus('Updating password...', 'info');
+
+//   try {
+//     const res = await fetch('/api/auth/change-password', {
+//       method: 'POST',
+//       headers: { 'Content-Type': 'application/json' },
+//       body: JSON.stringify({
+//         currentPassword: current,
+//         newPassword
+//       })
+//     });
+
+//     const data = await res.json();
+
+//     if (!res.ok || !data.success) {
+//       setChangePasswordStatus(
+//         data.message || 'Password change failed.',
+//         'error'
+//       );
+//       return;
+//     }
+
+//     showToast('Password changed. Please log in again.', 'success');
+//     window.location.href = '/auth/login';
+
+//   } catch {
+//     setChangePasswordStatus('Unable to contact server.', 'error');
+//   }
+// }
 
 async function fetchLive() {
   const btn = document.getElementById('fetchBtn');

@@ -23,18 +23,33 @@ async function fetchLiveDataFromConfig() {
       fetch('/api/live/ips')
     ]);
 
-    if (!devicesRes.ok || !ipsRes.ok) {
-      throw new Error('Live fetch failed');
+    // Handle "not configured" explicitly
+    if (devicesRes.status === 400 || ipsRes.status === 400) {
+      const err =
+        (await devicesRes.json().catch(() => null)) ||
+        (await ipsRes.json().catch(() => null));
+
+      state.liveDevices = [];
+      state.liveIPs = [];
+      state.liveError = err?.error || 'NetBox is not configured.';
+      return false;
     }
 
+    // Other non-OK failures
+    if (!devicesRes.ok || !ipsRes.ok) {
+      throw new Error('Failed to fetch live NetBox data.');
+    }
+
+    // Success
     state.liveDevices = await devicesRes.json();
     state.liveIPs = await ipsRes.json();
     state.liveError = '';
     return true;
+
   } catch (e) {
     state.liveDevices = [];
     state.liveIPs = [];
-    state.liveError = e.message;
+    state.liveError = e.message || 'Unexpected error fetching live data.';
     return false;
   }
 }
