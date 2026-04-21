@@ -16,18 +16,20 @@ def initialize_file(file: str):
     formatted_path = format_path(file)
     try:
         formatted_path.mkdir(parents=True, exist_ok=True)
-        return formatted_path.open()
     except Exception as e:
         print (f"Error: {e}")
 
 def format_path(path: str) -> Path:
     try:
         path_obj = Path(path)
+
         if path_obj.is_absolute():
-            return path_obj
-        return Path().cwd() / path_obj
+            return path_obj.resolve(strict=False)
+
+        return (Path.cwd() / path_obj).resolve(strict=False)
+
     except Exception as e:
-        print(f"Error: {e}")
+        raise ValueError(f"Invalid path: {path}") from e
 
 def count_csv_rows(path: Path) -> int:
     if not path.exists():
