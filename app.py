@@ -98,12 +98,139 @@ def login():
 
     return render_template("login.html", title="Login")
 
+# ── Shareable view helpers ────────────────────────────────
+
+def _fetch_live_data():
+    """Fetch live devices + IPs from NetBox. Returns (devices, ips, error)."""
+    if not app_state.netbox_url or not app_state.netbox_token:
+        return [], [], "NetBox is not configured."
+
+    headers = {
+        "Authorization": f"Token {app_state.netbox_token}",
+        "Accept": "application/json",
+    }
+
+    try:
+        dev_r = requests.get(
+            f"{app_state.netbox_url}/api/dcim/devices/?limit=1000",
+            headers=headers, timeout=10,
+        )
+        ip_r = requests.get(
+            f"{app_state.netbox_url}/api/ipam/ip-addresses/?limit=1000",
+            headers=headers, timeout=10,
+        )
+        dev_r.raise_for_status()
+        ip_r.raise_for_status()
+    except requests.RequestException as e:
+        return [], [], str(e)
+
+    devices = []
+    for d in dev_r.json().get("results", []):
+        devices.append({
+            "name": d.get("name", "Unnamed device"),
+            "type": (
+                (d.get("role") or {}).get("name")
+                or (d.get("device_type") or {}).get("model")
+                or "Device"
+            ),
+            "status": (
+                (d.get("status") or {}).get("label")
+                or (d.get("status") or {}).get("value")
+                or "Unknown"
+            ),
+            "site": ((d.get("site") or {}).get("name") or "—"),
+            "manufacturer": (
+                ((d.get("device_type") or {})
+                 .get("manufacturer") or {})
+                .get("name", "—")
+            ),
+            "model": (d.get("device_type") or {}).get("model", "—"),
+            "ip_address": (
+                (d.get("primary_ip4") or {}).get("address")
+                or (d.get("primary_ip") or {}).get("address")
+                or "—"
+            ),
+            "description": d.get("description") or "",
+        })
+
+    ips = []
+    for ip in ip_r.json().get("results", []):
+        ips.append({
+            "address": ip.get("address", "—"),
+            "status": (
+                (ip.get("status") or {}).get("label")
+                or (ip.get("status") or {}).get("value")
+                or "Unknown"
+            ),
+            "assigned_to": (
+                (ip.get("assigned_object") or {}).get("name")
+                or (ip.get("assigned_object") or {}).get("display")
+                or "Unassigned"
+            ),
+            "vrf": ((ip.get("vrf") or {}).get("name") or "Global"),
+            "tenant": ((ip.get("tenant") or {}).get("name") or "—"),
+            "description": ip.get("description") or "",
+        })
+
+    return devices, ips, None
+
+
+def _load_snapshot_data(snapshot_id):
+    """Load a snapshot from CSV files. Returns (devices, ips, error)."""
+    base = Path(app_config.get("snapshot_loc_path")) / "csv"
+    devices_path = base / f"devices_export_{snapshot_id}.csv"
+    ips_path = base / f"ip_addresses_export_{snapshot_id}.csv"
+
+    if not devices_path.exists() and not ips_path.exists():
+        return None, None, f"Snapshot '{snapshot_id}' not found."
+
+    devices = load_devices_csv(devices_path) if devices_path.exists() else []
+    ips = load_ips_csv(ips_path) if ips_path.exists() else []
+    return devices, ips, None
+
+
+# ── Page routes ───────────────────────────────────────────
+
 @app.route(HOME)
 def home():
-    return render_template("index.html", title="dashboard")
+    return render_template("index.html", title="Dashboard",
+                           initial_source=None, initial_data=None)
 
-# API
-# ---------------------------
+
+@app.route("/live")
+def view_live():
+    devices, ips, error = _fetch_live_data()
+    initial_data = {
+        "source": "live",
+        "devices": devices,
+        "ip_addresses": ips,
+        "error": error or "",
+    }
+    return render_template("index.html", title="Live Objects — Netbox Manager",
+                           initial_source="live", initial_data=initial_data)
+
+
+@app.route("/snapshot/<snapshot_id>")
+def view_snapshot(snapshot_id):
+    devices, ips, error = _load_snapshot_data(snapshot_id)
+
+    if error:
+        # Snapshot not found — render the dashboard and let JS handle it
+        return render_template("index.html", title="Snapshot Not Found — Netbox Manager",
+                               initial_source=snapshot_id,
+                               initial_data={"source": snapshot_id, "devices": [], "ip_addresses": [], "error": error})
+
+    initial_data = {
+        "source": snapshot_id,
+        "devices": devices,
+        "ip_addresses": ips,
+        "error": "",
+    }
+    return render_template("index.html", title=f"Snapshot {snapshot_id} — Netbox Manager",
+                           initial_source=snapshot_id, initial_data=initial_data)
+
+
+# ── API ───────────────────────────────────────────────────
 
 @app.route("/api/test-netbox", methods=["POST"])
 def test_netbox():
@@ -130,9 +257,6 @@ def test_netbox():
 def logout():
     session.clear()
     return redirect(url_for("login"))
-
-from flask import jsonify
-import requests
 
 @app.route("/api/live/devices")
 def api_live_devices():
@@ -267,7 +391,6 @@ def get_netbox_config_metadata():
 
 @app.route("/api/auth/change-password", methods=["POST"])
 def change_password():
-    # 1. Must be authenticated
     if not session.get("authenticated"):
         return jsonify(success=False, message="Not authenticated"), 401
 
@@ -278,19 +401,15 @@ def change_password():
     if not current or not new:
         return jsonify(success=False, message="Invalid payload"), 400
 
-    # 2. Verify current password
     if not verify_password(current, app_state.hashed_password):
         return jsonify(success=False, message="Current password is incorrect"), 403
 
-    # 3. Validate new password
     if not valid_password(new):
         return jsonify(success=False, message="Invalid new password"), 400
 
-    # 4. Save new password
     app_state.hashed_password = hash_password(new)
     app_state.save()
 
-    # 5. Force logout
     session.clear()
     return jsonify(success=True)
 

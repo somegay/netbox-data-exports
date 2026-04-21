@@ -53,10 +53,22 @@ function bindEvents() {
   document.getElementById('changePasswordModal').addEventListener('click', e => {
     if (e.target === document.getElementById('changePasswordModal')) closeChangePasswordModal();
   });
+
+  // Browser back / forward
+  window.addEventListener('popstate', e => {
+    const source = e.state?.source ?? 'live';
+    setActiveSource(source, { pushState: false });
+  });
 }
 
-async function setActiveSource(sourceId) {
+async function setActiveSource(sourceId, { pushState = true } = {}) {
   state.activeSource = sourceId;
+
+  // Keep the URL in sync so shareable links work
+  if (pushState) {
+    const url = sourceId === 'live' ? '/live' : `/snapshot/${sourceId}`;
+    history.pushState({ source: sourceId }, '', url);
+  }
 
   const isLive = sourceId === 'live';
   const liveCard = document.getElementById('liveCard');

@@ -16,7 +16,30 @@ function getNetboxResults(json) {
   return [];
 }
 
+/**
+ * Populate live state from SSR-injected data if available.
+ * Returns true if data was present, false if a fetch is still needed.
+ */
+function hydrateFromSSR() {
+  const d = window.__INITIAL_DATA__;
+  if (!d || d.source !== 'live') return false;
+
+  state.liveDevices = d.devices || [];
+  state.liveIPs = d.ip_addresses || [];
+  state.liveError = d.error || '';
+
+  // Consume so a subsequent setActiveSource('live') call won't re-use stale SSR data
+  window.__INITIAL_DATA__ = null;
+
+  return true;
+}
+
 async function fetchLiveDataFromConfig() {
+  // If the page was server-rendered for /live, skip the network round-trip
+  if (hydrateFromSSR()) {
+    return state.liveError === '';
+  }
+
   try {
     const [devicesRes, ipsRes] = await Promise.all([
       fetch('/api/live/devices'),
@@ -67,6 +90,19 @@ function getAllSnapshots() {
 }
 
 async function loadSnapshotData(snapshotId) {
+  // If the page was server-rendered for this exact snapshot, hydrate directly
+  const d = window.__INITIAL_DATA__;
+  if (d && d.source === snapshotId) {
+    const snap = getSnapshotById(snapshotId);
+    if (snap) {
+      snap.devices = d.devices || [];
+      snap.ip_addresses = d.ip_addresses || [];
+      if (d.error) showToast(d.error, 'error');
+    }
+    window.__INITIAL_DATA__ = null;
+    return;
+  }
+
   const res = await fetch(`/api/snapshots/${snapshotId}`);
   if (!res.ok) {
     showToast('Failed to load snapshot.', 'error');

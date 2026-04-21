@@ -1,10 +1,34 @@
-// ── App Bootstrap (Direct Access) ────────────────────────
+// ── App Bootstrap ────────────────────────────────────────
+
+/**
+ * Determine which source to activate on first load.
+ *
+ * Priority:
+ *  1. SSR injection  — Flask set window.__INITIAL_DATA__ (shareable URL)
+ *  2. Default        — fall back to 'live'
+ */
+function getInitialSource() {
+  const d = window.__INITIAL_DATA__;
+  if (d && d.source) return d.source;
+  return 'live';
+}
+
 async function bootstrapApp() {
   loadNetboxConfig();
   await loadSnapshotsFromServer();
   bindEvents();
   renderSidebar();
-  await setActiveSource('live');
+
+  const initialSource = getInitialSource();
+
+  // Seed history so popstate has a state object for this entry.
+  // Use replaceState (not pushState) — we're not navigating, just annotating
+  // the current history entry.
+  const initialUrl = initialSource === 'live' ? '/live' : `/snapshot/${initialSource}`;
+  history.replaceState({ source: initialSource }, '', initialUrl);
+
+  // Pass pushState:false — replaceState above already handled the URL
+  await setActiveSource(initialSource, { pushState: false });
 }
 
 function getPasswordRuleResults(password) {
@@ -71,7 +95,6 @@ async function handleChangePasswordSubmit(e) {
 
   setChangePasswordStatus('');
 
-  // Client-side UX checks
   if (!isPasswordValid(newPassword)) {
     setChangePasswordStatus(
       'New password does not satisfy all requirements.',
