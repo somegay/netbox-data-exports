@@ -12,6 +12,8 @@ from pathlib import Path
 from datetime import datetime
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
+from dev_lib.utils import initialize_file
+from dev_lib.config import APP_CONFIG_VALUES, initialize_dependency, format_path
 
 # Configuration Helpers
 # --------------------------
@@ -33,31 +35,81 @@ def try_get_env_var(var_name: str, default_value: str = "") -> str:
         raise EnvironmentError(f"Essential configuration {var_name} is missing")
     return env_var_value if env_var_value else default_value
 
+def verify_file(path: Path):
+    """
+    Verify that a file exists at the given path.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+
+def load_app_config(path: str) -> dict:
+    """
+    Loads application configuration values.
+    """
+    try:
+        return initialize_dependency(path, APP_CONFIG_VALUES)
+    except Exception as e:
+        print(f"Error initializing app configuration file: {e}")
+        exit(1)
+
+def get_export_paths(snapshot_loc_path: str) -> dict:
+    try:
+        formatted_path = format_path(snapshot_loc_path)
+        data = {
+            "CSV": formatted_path / "csv",
+            "JSON": formatted_path / "json"
+        }
+        initialize_file(data.get("CSV"))
+        initialize_file(data.get("JSON"))
+        return data
+    except Exception as e:
+        print(f"Error formatting export paths: {e}")
+        exit(1)
+
+def load_app_state(state_file_path: str) -> dict:
+    if not state_file_path:
+        raise RuntimeError("State file path is not provided in app configuration")
+    formatted_path = format_path(state_file_path)
+    verify_file(formatted_path)
+    with open(formatted_path, "r") as app_state_file:
+        try:
+            return json.load(app_state_file)
+        except json.JSONDecodeError as e:
+            raise RuntimeError(f"Invalid JSON in state file: {formatted_path}") from e
+
 def load_config() -> dict:
     """
-    Loads configuration values for the environmental variables and logging.
+    Loads configuration values for the app and logging.
     """
     load_dotenv()
     try:
+        # Get app config location
+        app_config_path = try_get_env_var("APP_CONFIG", "")
+        # Load app config values and validate
+        if not app_config_path:
+            raise EnvironmentError("APP_CONFIG is not set in environment variables")
+        app_config = load_app_config(app_config_path)
+        export_paths = get_export_paths(app_config.get("snapshot_loc_path"))
+        app_state = load_app_state(app_config.get("state_file_path"))
         config_values = {
-            "LOGGING_CONFIG": try_get_env_var("LOGGING_CONFIG_PATH", "logging_config.json"),
-            "NETBOX_URL": try_get_env_var("NETBOX_URL"),
-            "NETBOX_TOKEN": try_get_env_var("NETBOX_TOKEN"),
+            "LOGGING_CONFIG": app_config.get("logging_config_path"),
+            "NETBOX_URL": app_state.get("netbox_url"),
+            "NETBOX_TOKEN": app_state.get("netbox_token"),
             "NETBOX_ENDPOINTS": [
                 {
                     "name": "devices",
-                    "endpoint": "api/dcim/devices/"
+                    "endpoint": "/api/dcim/devices/"
                 },
                 {
                     "name": "ip_addresses",
-                    "endpoint": "api/ipam/ip-addresses/"
+                    "endpoint": "/api/ipam/ip-addresses/"
                 }
             ],
-            "CSV_EXPORT_PATH": try_get_env_var("CSV_EXPORT_PATH", "exports/csv"),
-            "JSON_EXPORT_PATH": try_get_env_var("JSON_EXPORT_PATH", "exports/json")
+            "CSV_EXPORT_PATH": export_paths.get("CSV"),
+            "JSON_EXPORT_PATH": export_paths.get("JSON")
         }
         config_values["HEADERS"] = {
-                "Authorization": config_values.get("NETBOX_TOKEN"),
+                "Authorization": f"Token {config_values.get("NETBOX_TOKEN")}",
                 "Content-Type": "application/json"
         }
         return config_values
@@ -75,10 +127,11 @@ def setup_logging(logging_config_path: str) -> None:
     Args:
         logging_config_path(str): location of the logging configuration file in JSON format.
     """
-    default_logs_output_path = "logs"
-    base_path = Path(__file__).resolve().parent
-    logs_path = base_path / default_logs_output_path
-    logs_path.mkdir(parents=True, exist_ok=True)
+    if not logging_config_path:
+        raise RuntimeError("Logging configuration path is not provided in app configuration")
+    formatted_path = format_path(logging_config_path)
+    if not formatted_path.exists():
+        raise RuntimeError(f"Logging configuration file does not exist: {formatted_path}")
 
     # Load logging config
     try:
@@ -213,6 +266,8 @@ def write_to_file(
 
 # Utility Functions
 #--------------------------
+
+
 def get_datetime() -> str:
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
