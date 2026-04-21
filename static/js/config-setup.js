@@ -47,23 +47,40 @@ async function saveInitialConfig() {
     return;
   }
 
-  setSetupStatus('Saving configuration...', 'info');
+  setSetupStatus('Testing connection...', 'info');
 
   try {
-    const res = await fetch('/initialize-config', {
+    // 1. Test first (reuse existing endpoint)
+    const testRes = await fetch('/api/test-netbox', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(cfg),
     });
 
-    if (!res.ok) {
+    if (!testRes.ok) {
+      setSetupStatus('Connection test failed. Configuration not saved.', 'error');
+      return;
+    }
+
+    // 2. Save only if test passed
+    setSetupStatus('Saving configuration...', 'info');
+
+    const saveRes = await fetch('/initialize-config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(cfg),
+    });
+
+    if (!saveRes.ok) {
       setSetupStatus('Failed to save configuration.', 'error');
       return;
     }
 
-    window.location.href = '/';
-  } catch {
-    setSetupStatus('Network error while saving configuration.', 'error');
+    setSetupStatus('Configuration saved successfully.', 'success');
+    window.location.href = saveRes.ok ? (await saveRes.json()).next : '/';
+
+  } catch (err) {
+    setSetupStatus(`${err}`, 'error');
   }
 }
 

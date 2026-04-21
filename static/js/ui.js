@@ -281,11 +281,20 @@ function closeMobileDrawer() {
   document.body.classList.remove('mobile-drawer-open');
 }
 
-function openSettingsModal() {
+async function openSettingsModal() {
   closeMobileDrawer();
-  document.getElementById('configLabel').value = state.netboxConfig.label || '';
-  document.getElementById('configNetboxUrl').value = state.netboxConfig.url || '';
-  document.getElementById('configApiToken').value = state.netboxConfig.token || '';
+
+  try {
+    const res = await fetch('/api/netbox/config');
+    if (res.ok) {
+      const cfg = await res.json();
+      document.getElementById('configNetboxUrl').value = cfg.url || '';
+    }
+  } catch {
+    // best-effort only
+  }
+
+  document.getElementById('configApiToken').value = ''; // NEVER prefill
   setSettingsStatus('', 'info');
   document.getElementById('settingsModal').style.display = '';
 }

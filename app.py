@@ -74,7 +74,8 @@ def init_config_setup():
         app_state.netbox_token = data.get("netbox_token")
         app_state.save()
         return jsonify(
-            success=True
+            success=True,
+            next=url_for("home")
         )
     return render_template("setup-config.html", title="Setup configuration")
 
@@ -135,6 +136,11 @@ import requests
 
 @app.route("/api/live/devices")
 def api_live_devices():
+    if not app_state.netbox_url or not app_state.netbox_token:
+        return jsonify(
+            success=False,
+            error="NetBox is not configured."
+        ), 400
     r = requests.get(
         f"{app_state.netbox_url}/api/dcim/devices/?limit=1000",
         headers={
@@ -181,6 +187,11 @@ def api_live_devices():
 
 @app.route("/api/live/ips")
 def api_live_ips():
+    if not app_state.netbox_url or not app_state.netbox_token:
+        return jsonify(
+            success=False,
+            error="NetBox is not configured."
+        ), 400
     r = requests.get(
         f"{app_state.netbox_url}/api/ipam/ip-addresses/?limit=1000",
         headers={
@@ -239,6 +250,49 @@ def api_load_snapshot(snapshot_id):
         data["ip_addresses"] = []
 
     return jsonify(data)
+
+
+@app.route("/api/netbox/config", methods=["GET", "DELETE"])
+def get_netbox_config_metadata():
+    if request.method == "DELETE":
+        app_state.netbox_url = ""
+        app_state.netbox_token = ""
+        app_state.save()
+        return jsonify(success=True)
+
+    return jsonify({
+        "url": app_state.netbox_url,
+        "configured": bool(app_state.netbox_token),
+    })
+
+@app.route("/api/auth/change-password", methods=["POST"])
+def change_password():
+    # 1. Must be authenticated
+    if not session.get("authenticated"):
+        return jsonify(success=False, message="Not authenticated"), 401
+
+    data = request.get_json(silent=True) or {}
+    current = data.get("currentPassword")
+    new = data.get("newPassword")
+
+    if not current or not new:
+        return jsonify(success=False, message="Invalid payload"), 400
+
+    # 2. Verify current password
+    if not verify_password(current, app_state.hashed_password):
+        return jsonify(success=False, message="Current password is incorrect"), 403
+
+    # 3. Validate new password
+    if not valid_password(new):
+        return jsonify(success=False, message="Invalid new password"), 400
+
+    # 4. Save new password
+    app_state.hashed_password = hash_password(new)
+    app_state.save()
+
+    # 5. Force logout
+    session.clear()
+    return jsonify(success=True)
 
 if __name__ == "__main__":
     app.run(debug=True)

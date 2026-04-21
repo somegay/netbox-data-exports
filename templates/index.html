@@ -230,10 +230,7 @@
       </button>
     </div>
     <div class="modal-body settings-body">
-      <p>Configure your Netbox API access details. This information is stored locally in your browser.</p>
-
-      <label for="configLabel">Configuration Label (Optional)</label>
-      <input type="text" id="configLabel" class="settings-input" placeholder="Demo Netbox Instance" />
+      <p>Configure your Netbox API access details. This information is stored locally in the server.</p>
 
       <label for="configNetboxUrl">Netbox URL *</label>
       <input type="url" id="configNetboxUrl" class="settings-input" placeholder="https://demo.netbox.dev" />
@@ -241,7 +238,7 @@
       <label for="configApiToken">API Token *</label>
       <input type="password" id="configApiToken" class="settings-input" placeholder="Enter your API token" />
 
-      <div class="settings-hint">Your API token is stored locally and never sent to external servers (except Netbox).</div>
+      <div class="settings-hint">Your API token is stored remotely in the server and never sent to external hosts (except Netbox).</div>
 
       <div id="settingsStatus" class="settings-status" style="display:none"></div>
     </div>

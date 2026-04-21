@@ -62,22 +62,63 @@ function closeChangePasswordModal() {
   document.getElementById('changePasswordModal').style.display = 'none';
 }
 
-function handleChangePasswordSubmit(e) {
+async function handleChangePasswordSubmit(e) {
   e.preventDefault();
+
+  const current = document.getElementById('currentPassword').value;
   const newPassword = document.getElementById('newPassword').value;
-  const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+  const confirm = document.getElementById('confirmNewPassword').value;
 
+  setChangePasswordStatus('');
+
+  // Client-side UX checks
   if (!isPasswordValid(newPassword)) {
-    setChangePasswordStatus('New password does not satisfy all requirements.', 'error');
+    setChangePasswordStatus(
+      'New password does not satisfy all requirements.',
+      'error'
+    );
     return;
   }
 
-  if (newPassword !== confirmNewPassword) {
-    setChangePasswordStatus('New password and confirmation do not match.', 'error');
+  if (newPassword !== confirm) {
+    setChangePasswordStatus(
+      'New password and confirmation do not match.',
+      'error'
+    );
     return;
   }
 
-  setChangePasswordStatus('Placeholder only: password is not saved in this mode.', 'info');
+  setChangePasswordStatus('Updating password...', 'info');
+
+  try {
+    const res = await fetch('/api/auth/change-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPassword: current,
+        newPassword,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      setChangePasswordStatus(
+        data.message || 'Password change failed.',
+        'error'
+      );
+      return;
+    }
+
+    showToast('Password changed. Please log in again.', 'success');
+    window.location.href = '/auth/login';
+
+  } catch {
+    setChangePasswordStatus(
+      'Unable to contact server.',
+      'error'
+    );
+  }
 }
 
 function initInAppPasswordHandlers() {
