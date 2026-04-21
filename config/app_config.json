@@ -1,6 +1,5 @@
 {
     "version": "0.1",
     "state_file_path": "temp_state.json" ,
-    "logging_config_path": "logging_config.json",
     "snapshot_loc_path": "C:\\Users\\John Dave Medenilla\\Scripts\\netbox_export\\exports"
 }

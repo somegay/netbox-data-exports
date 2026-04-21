@@ -85,14 +85,17 @@ def load_config() -> dict:
     try:
         # Get app config location
         app_config_path = try_get_env_var("APP_CONFIG", "")
+        logging_config_path = try_get_env_var("LOGGING_CONFIG_PATH", "")
         # Load app config values and validate
         if not app_config_path:
             raise EnvironmentError("APP_CONFIG is not set in environment variables")
+        if not logging_config_path:
+            raise EnvironmentError("LOGGING_CONFIG_PATH is not set in environment variables")
         app_config = load_app_config(app_config_path)
         export_paths = get_export_paths(app_config.get("snapshot_loc_path"))
         app_state = load_app_state(app_config.get("state_file_path"))
         config_values = {
-            "LOGGING_CONFIG": app_config.get("logging_config_path"),
+            "LOGGING_CONFIG": logging_config_path,
             "NETBOX_URL": app_state.get("netbox_url"),
             "NETBOX_TOKEN": app_state.get("netbox_token"),
             "NETBOX_ENDPOINTS": [
