@@ -16,15 +16,6 @@ function bindEvents() {
     btn.addEventListener('click', () => setActiveTab(btn.dataset.tab));
   });
 
-  document.getElementById('exportBtn').addEventListener('click', openExportModal);
-  document.getElementById('mobileExportBtn').addEventListener('click', openExportModal);
-  document.getElementById('closeExportModal').addEventListener('click', closeExportModal);
-  document.getElementById('cancelExportBtn').addEventListener('click', closeExportModal);
-  document.getElementById('confirmExportBtn').addEventListener('click', doExport);
-  document.getElementById('exportModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('exportModal')) closeExportModal();
-  });
-
   document.getElementById('tableSearch').addEventListener('input', renderTable);
   document.getElementById('statusFilter').addEventListener('change', renderTable);
 
