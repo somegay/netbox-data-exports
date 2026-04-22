@@ -5,8 +5,39 @@ from dev_lib.config import *
 from dev_lib.state import *
 from dev_lib.auth import *
 import os, requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 load_dotenv()
+
+# ── NetBox HTTP session ───────────────────────────────────
+
+def _netbox_session() -> requests.Session:
+    """
+    Returns a requests Session configured for NetBox Cloud's free tier,
+    which sleeps after inactivity and can take >10s to cold-start.
+
+    Strategy:
+      - Generous timeout (30s) to survive the cold-start wake-up window.
+      - 3 retries with exponential backoff (1s, 2s, 4s) for transient
+        network errors and bad-gateway responses from the sleeping host.
+      - Read timeouts are retried explicitly via Retry(read=3) since
+        urllib3 does not count them against `total` by default.
+    """
+    session = requests.Session()
+    retry = Retry(
+        total=3,
+        read=3,
+        backoff_factor=1,           # waits: 1s, 2s, 4s between retries
+        status_forcelist=[502, 503, 504],
+        allowed_methods=["GET", "POST"],
+        raise_on_status=False,
+    )
+    session.mount("https://", HTTPAdapter(max_retries=retry))
+    session.mount("http://",  HTTPAdapter(max_retries=retry))
+    return session
+
+NETBOX_TIMEOUT = 30  # seconds — wide enough to cover a cold-start wake-up
 
 # Config locations
 FLASK_CONFIG_PATH = os.environ.get("FLASK_CONFIG")
@@ -43,20 +74,31 @@ def guard():
         return redirect(HOME)
     if not app_state.is_initialized and request.path != SETUP:
         return redirect(SETUP)
-    if app_state.is_initialized and not session.get("authenticated") and request.path != LOGIN:
-        return redirect(LOGIN)
+    if app_state.is_initialized and request.path != LOGIN:
+        # Check session auth_version against DB on every request.
+        # If the password changed since this session was created, the
+        # version won't match and the session is invalidated immediately,
+        # kicking all browsers that aren't holding the new password.
+        db_version = app_state.get_auth_version()
+        if session.get("auth_version") != db_version:
+            session.clear()
+            return redirect(LOGIN)
+        if request.path != LOGIN and not session.get("authenticated"):
+            return redirect(LOGIN)
 
 @app.route(SETUP, methods=["GET", "POST"])
 def setup():
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         password = data.get("password")
-        if not valid_password(password):
-            return jsonify(success=False, message="Invalid password"), 400
-        app_state.hashed_password = hash_password(password)
-        app_state.is_initialized = True
-        app_state.save()
+
+        # Atomically validates, hashes, and persists the password in one transaction
+        success, error = app_state.setup_password(password)
+        if not success:
+            return jsonify(success=False, message=error), 400
+
         session["authenticated"] = True
+        session["auth_version"]  = app_state.auth_version
         return jsonify(
             success=True,
             next=url_for("init_config_setup")
@@ -70,9 +112,10 @@ def init_config_setup():
         data = request.get_json(silent=True) or {}
         if "netbox_url" not in data or "netbox_token" not in data:
             return jsonify(success=False, message="Invalid payload"), 400
-        app_state.netbox_url = data.get("netbox_url")
-        app_state.netbox_token = data.get("netbox_token")
-        app_state.save()
+
+        # Atomically persists both credentials together
+        app_state.save_netbox_config(data["netbox_url"], data["netbox_token"])
+
         return jsonify(
             success=True,
             next=url_for("home")
@@ -94,6 +137,7 @@ def login():
             return jsonify(success=False, message="Invalid password"), 401
 
         session["authenticated"] = True
+        session["auth_version"]  = app_state.auth_version
         return jsonify(success=True, next=url_for("home"))
 
     return render_template("login.html", title="Login")
@@ -111,13 +155,14 @@ def _fetch_live_data():
     }
 
     try:
-        dev_r = requests.get(
+        nb = _netbox_session()
+        dev_r = nb.get(
             f"{app_state.netbox_url}/api/dcim/devices/?limit=1000",
-            headers=headers, timeout=10,
+            headers=headers, timeout=NETBOX_TIMEOUT,
         )
-        ip_r = requests.get(
+        ip_r = nb.get(
             f"{app_state.netbox_url}/api/ipam/ip-addresses/?limit=1000",
-            headers=headers, timeout=10,
+            headers=headers, timeout=NETBOX_TIMEOUT,
         )
         dev_r.raise_for_status()
         ip_r.raise_for_status()
@@ -215,7 +260,6 @@ def view_snapshot(snapshot_id):
     devices, ips, error = _load_snapshot_data(snapshot_id)
 
     if error:
-        # Snapshot not found — render the dashboard and let JS handle it
         return render_template("index.html", title="Snapshot Not Found — Netbox Manager",
                                initial_source=snapshot_id,
                                initial_data={"source": snapshot_id, "devices": [], "ip_addresses": [], "error": error})
@@ -236,13 +280,13 @@ def view_snapshot(snapshot_id):
 def test_netbox():
     cfg = request.get_json()
     try:
-        r = requests.get(
+        r = _netbox_session().get(
             f"{cfg['netbox_url']}/api/",
             headers={
                 "Authorization": f"Token {cfg['netbox_token']}",
                 "Accept": "application/json",
             },
-            timeout=5,
+            timeout=NETBOX_TIMEOUT,
         )
         if r.status_code == 200:
             return jsonify({"ok": True})
@@ -265,13 +309,13 @@ def api_live_devices():
             success=False,
             error="NetBox is not configured."
         ), 400
-    r = requests.get(
+    r = _netbox_session().get(
         f"{app_state.netbox_url}/api/dcim/devices/?limit=1000",
         headers={
             "Authorization": f"Token {app_state.netbox_token}",
             "Accept": "application/json",
         },
-        timeout=10,
+        timeout=NETBOX_TIMEOUT,
     )
     r.raise_for_status()
 
@@ -316,13 +360,13 @@ def api_live_ips():
             success=False,
             error="NetBox is not configured."
         ), 400
-    r = requests.get(
+    r = _netbox_session().get(
         f"{app_state.netbox_url}/api/ipam/ip-addresses/?limit=1000",
         headers={
             "Authorization": f"Token {app_state.netbox_token}",
             "Accept": "application/json",
         },
-        timeout=10,
+        timeout=NETBOX_TIMEOUT,
     )
     r.raise_for_status()
 
@@ -379,9 +423,8 @@ def api_load_snapshot(snapshot_id):
 @app.route("/api/netbox/config", methods=["GET", "DELETE"])
 def get_netbox_config_metadata():
     if request.method == "DELETE":
-        app_state.netbox_url = ""
-        app_state.netbox_token = ""
-        app_state.save()
+        # Atomically wipes both fields together
+        app_state.clear_netbox_config()
         return jsonify(success=True)
 
     return jsonify({
@@ -395,20 +438,16 @@ def change_password():
         return jsonify(success=False, message="Not authenticated"), 401
 
     data = request.get_json(silent=True) or {}
-    current = data.get("currentPassword")
-    new = data.get("newPassword")
 
-    if not current or not new:
-        return jsonify(success=False, message="Invalid payload"), 400
+    # Atomically verifies current password and replaces it in one transaction
+    success, error = app_state.change_password(
+        data.get("currentPassword"),
+        data.get("newPassword"),
+    )
 
-    if not verify_password(current, app_state.hashed_password):
-        return jsonify(success=False, message="Current password is incorrect"), 403
-
-    if not valid_password(new):
-        return jsonify(success=False, message="Invalid new password"), 400
-
-    app_state.hashed_password = hash_password(new)
-    app_state.save()
+    if not success:
+        status = 403 if error == "Current password is incorrect" else 400
+        return jsonify(success=False, message=error), status
 
     session.clear()
     return jsonify(success=True)

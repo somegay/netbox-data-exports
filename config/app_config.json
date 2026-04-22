@@ -1,5 +1,5 @@
 {
     "version": "0.1",
-    "state_file_path": "temp_state.json" ,
-    "snapshot_loc_path": "C:\\Users\\John Dave Medenilla\\Scripts\\netbox_export\\exports"
+    "state_file_path": "data\\state.db" ,
+    "snapshot_loc_path": "exports"
 }
