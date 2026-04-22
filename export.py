@@ -6,7 +6,7 @@ objects via the Netbox REST API, and exports the results
 to timestamped CSV and JSON files.
 """
 
-import requests, pandas, json, os, logging, logging.config
+import requests, pandas, json, os, logging, logging.config, sqlite3
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import datetime
@@ -14,6 +14,11 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from dev_lib.utils import initialize_file
 from dev_lib.config import APP_CONFIG_VALUES, initialize_dependency, format_path
+
+# Path anchor — all relative paths in config files are resolved from here.
+# Using __file__ instead of Path.cwd() means this works correctly when
+# invoked from any directory, including from a cronjob.
+SCRIPT_DIR = Path(__file__).resolve().parent
 
 # Configuration Helpers
 # --------------------------
@@ -54,6 +59,11 @@ def load_app_config(path: str) -> dict:
 
 def get_export_paths(snapshot_loc_path: str) -> dict:
     try:
+        # Resolve relative to the script location so cronjob invocations
+        # don't resolve against whatever the daemon's cwd happens to be.
+        raw = Path(snapshot_loc_path)
+        if not raw.is_absolute():
+            snapshot_loc_path = str(SCRIPT_DIR / raw)
         formatted_path = format_path(snapshot_loc_path)
         data = {
             "CSV": formatted_path / "csv",
@@ -69,19 +79,27 @@ def get_export_paths(snapshot_loc_path: str) -> dict:
 def load_app_state(state_file_path: str) -> dict:
     if not state_file_path:
         raise RuntimeError("State file path is not provided in app configuration")
-    formatted_path = format_path(state_file_path)
-    verify_file(formatted_path)
-    with open(formatted_path, "r") as app_state_file:
-        try:
-            return json.load(app_state_file)
-        except json.JSONDecodeError as e:
-            raise RuntimeError(f"Invalid JSON in state file: {formatted_path}") from e
+    raw = Path(state_file_path)
+    if not raw.is_absolute():
+        state_file_path = str(SCRIPT_DIR / raw)
+    db_path = format_path(state_file_path)
+    verify_file(db_path)
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+        row = conn.execute("SELECT * FROM app_state WHERE id = 1").fetchone()
+        conn.close()
+    except sqlite3.Error as e:
+        raise RuntimeError(f"Failed to read state database: {db_path}") from e
+    if row is None:
+        raise RuntimeError(f"State database exists but contains no data: {db_path}")
+    return dict(row)
 
 def load_config() -> dict:
     """
     Loads configuration values for the app and logging.
     """
-    load_dotenv()
+    load_dotenv(dotenv_path=SCRIPT_DIR / ".env")
     try:
         # Get app config location
         app_config_path = try_get_env_var("APP_CONFIG", "")
@@ -94,6 +112,7 @@ def load_config() -> dict:
         app_config = load_app_config(app_config_path)
         export_paths = get_export_paths(app_config.get("snapshot_loc_path"))
         app_state = load_app_state(app_config.get("state_file_path"))
+        print("Netbox Url:",app_state.get("netbox_url"))
         config_values = {
             "LOGGING_CONFIG": logging_config_path,
             "NETBOX_URL": app_state.get("netbox_url"),
@@ -140,7 +159,15 @@ def setup_logging(logging_config_path: str) -> None:
     try:
         with open(logging_config_path, "r") as config_file:
             config_dict = json.loads(config_file.read())
-            logging.config.dictConfig(config_dict)
+
+        # Ensure the log directory exists before dictConfig tries to open
+        # the file handler — otherwise logging initialisation will crash.
+        for handler in config_dict.get("handlers", {}).values():
+            log_file = handler.get("filename")
+            if log_file:
+                Path(log_file).parent.mkdir(parents=True, exist_ok=True)
+
+        logging.config.dictConfig(config_dict)
     except Exception as e:
         print(f"[INITIAL_CONFIG]: FATAL ERROR! - {e}")
         exit(1)
@@ -166,9 +193,11 @@ def fetch_dataset(headers: dict[str, str], netbox_url: str, endpoints: list[dict
     # Auto-Retry
     session = requests.Session()
     retries = Retry(
-        total=3, 
-        backoff_factor=1, 
-        status_forcelist=[502, 503, 504]
+        total=3,
+        read=3,
+        backoff_factor=1,
+        status_forcelist=[502, 503, 504],
+        allowed_methods=["GET"],
     )
     session.mount('https://', HTTPAdapter(max_retries=retries))
     datasets = []
