@@ -61,6 +61,11 @@ def _ensure_parent(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
 
 
+def _ensure_dir(path: Path) -> None:
+    """Create a directory (and any missing parents) if it does not exist."""
+    path.mkdir(parents=True, exist_ok=True)
+
+
 def _confirm_overwrite(path: Path) -> bool:
     """If the file already exists, ask the user whether to overwrite it."""
     if not path.exists():
@@ -258,7 +263,7 @@ def step_logging_config(locations: dict) -> None:
 
 
 def step_env_and_db(locations: dict) -> None:
-    """Write .env and initialise the database."""
+    """Write .env, initialise the database, and create runtime directories."""
     _header("Step 4 of 4 — Environment file and database")
 
     # Generate a secure Flask secret key automatically
@@ -289,9 +294,18 @@ def step_env_and_db(locations: dict) -> None:
         print(f"\n  Database already exists at '{db_path}'.")
         if not _ask_bool("  Re-initialise? (this will NOT wipe existing data)", default=False):
             print("  Skipped database.")
-            return
+        else:
+            _init_db(db_path)
+    else:
+        _init_db(db_path)
 
-    _init_db(db_path)
+    # Create runtime directories that are never written to during setup but
+    # must exist before the app starts (exports/snapshots and log output).
+    print()
+    for key in ("snapshot_dir", "log_dir"):
+        dir_path = locations[key]
+        _ensure_dir(dir_path)
+        print(f"  ✔  Directory ready: {dir_path}")
 
 
 # Entry point 
